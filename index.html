@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnalStudy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            color: #e2e8f0; /* Light text */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Prevent body scroll */
+        }
+        .app-container {
+            width: 100%;
+            max-width: 400px; /* Average smartphone width */
+            height: 100vh; /* Full viewport height */
+            max-height: 800px; /* Average smartphone height */
+            background-color: #2d3748; /* Slightly lighter dark background for the app */
+            border-radius: 1.5rem; /* Rounded corners */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Hide scrollbars for internal content */
+        }
+        .screen {
+            display: none;
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto; /* Enable scrolling for content within screens */
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+        input, button, select {
+            border-radius: 0.75rem; /* Rounded corners for inputs/buttons */
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            color: #e2e8f0;
+            background-color: #4a5568; /* Darker input background */
+            border: 1px solid #4a5568;
+            outline: none;
+            transition: all 0.2s ease-in-out;
+        }
+        input:focus, select:focus {
+            border-color: #63b3ed; /* Blue focus border */
+            box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.5);
+        }
+        button {
+            cursor: pointer;
+            background-color: #4299e1; /* Blue button */
+            font-weight: 600;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+        button:hover {
+            background-color: #3182ce; /* Darker blue on hover */
+            transform: translateY(-1px);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .delete-button {
+            background-color: #e53e3e; /* Red for delete */
+        }
+        .delete-button:hover {
+            background-color: #c53030;
+        }
+        .break-button {
+            background-color: #f6ad55; /* Orange for break */
+        }
+        .break-button:hover {
+            background-color: #ed8936;
+        }
+        .stop-button {
+            background-color: #ecc94b; /* Yellow for stop */
+        }
+        .stop-button:hover {
+            background-color: #d69e2e;
+        }
+        .end-button {
+            background-color: #e53e3e; /* Red for end session */
+        }
+        .end-button:hover {
+            background-color: #c53030;
+        }
+        .subject-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #4a5568;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .subject-item span {
+            flex-grow: 1;
+        }
+        .subject-item button {
+            margin-left: 1rem;
+            margin-bottom: 0;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        .timer-display {
+            font-size: 3rem;
+            font-weight: 700;
+            text-align: center;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+            color: #63b3ed; /* Blue for timer */
+        }
+        .message-box {
+            background-color: #2b6cb0; /* Blue for info messages */
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .progress-bar-container {
+            width: 100%;
+            background-color: #4a5568;
+            border-radius: 0.5rem;
+            height: 1.5rem;
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #63b3ed;
+            width: 0%;
+            border-radius: 0.5rem;
+            transition: width 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Menu Screen -->
+        <div id="menuScreen" class="screen active">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">AnalStudy</h1>
+            <p class="text-center mb-4">Welcome to your study companion!</p>
+            <input type="text" id="userNameInput" placeholder="Your Name" class="w-full">
+            <input type="text" id="schoolNameInput" placeholder="School Name (Optional)" class="w-full">
+            <button id="enterAppButton" class="w-full">Enter App</button>
+            <p class="text-sm text-center text-gray-400 mt-4">Your data will be saved in your browser's cache.</p>
+        </div>
+
+        <!-- Main App Screen -->
+        <div id="mainAppScreen" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Subjects</h1>
+            <div id="subjectsList" class="flex flex-col mb-4">
+                <!-- Subjects will be loaded here -->
+            </div>
+            <input type="text" id="newSubjectInput" placeholder="Add New Subject" class="w-full">
+            <button id="addSubjectButton" class="w-full mb-4">Add Subject</button>
+
+            <h2 class="text-2xl font-bold text-center mb-4 text-blue-400 mt-6">Break Settings</h2>
+            <input type="number" id="maxBreaksInput" placeholder="Max Breaks (0 for unlimited)" class="w-full">
+            <input type="number" id="maxBreakDurationInput" placeholder="Max Break Duration (seconds, 0 for unlimited)" class="w-full mb-4">
+
+            <button id="startStudyingButton" class="w-full mt-auto">Start Studying</button>
+        </div>
+
+        <!-- Study Session Screen -->
+        <div id="studySessionScreen" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Study Session</h1>
+            <select id="subjectSelect" class="w-full mb-4"></select>
+            <button id="startTimerButton" class="w-full">Start Timer</button>
+            <div id="timerDisplay" class="timer-display">00:00:00</div>
+            <div id="currentSubjectDisplay" class="text-center text-xl text-gray-300 mb-4"></div>
+
+            <div class="flex flex-col gap-4 mt-auto">
+                <button id="takeBreakButton" class="w-full break-button">Take a Break</button>
+                <button id="stopBreakButton" class="w-full break-button" style="display: none;">Stop Break</button>
+                <button id="forceExtraBreakButton" class="w-full break-button" style="display: none;">Force Use Extra Break</button>
+                <button id="stopStudyingButton" class="w-full stop-button">Stop Studying</button>
+                <button id="endSessionButton" class="w-full end-button">End Session</button>
+            </div>
+            <div id="wakeLockMessage" class="message-box mt-4" style="display: none;">
+                Screen will stay on during study.
+            </div>
+        </div>
+
+        <!-- Overview Screen -->
+        <div id="overviewScreen" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Session Overview</h1>
+            <p id="sessionSummaryText" class="text-center text-lg text-gray-300 mb-6"></p>
+            <p class="text-xl font-semibold mb-4 text-center">What you studied:</p>
+            <div id="overviewSubjects" class="flex flex-col gap-2 mb-6">
+                <!-- Overview subjects and times will be loaded here -->
+            </div>
+            <p class="text-xl font-semibold mb-2 text-center">Breaks Taken:</p>
+            <p id="overviewBreaksTaken" class="text-center text-lg text-gray-300 mb-4"></p>
+            <p class="text-xl font-semibold mb-2 text-center">Total Break Time:</p>
+            <p id="overviewTotalBreakTime" class="text-center text-lg text-gray-300 mb-6"></p>
+            <p id="maxBreaksInfo" class="text-center text-sm text-gray-400 mb-1" style="display: none;"></p>
+            <p id="maxBreakDurationInfo" class="text-center text-sm text-gray-400 mb-4" style="display: none;"></p>
+            <p class="text-xl font-semibold mb-4 text-center">Total Session Time:</p>
+            <div id="totalSessionTime" class="timer-display text-2xl mb-6">00:00:00</div>
+            <button id="backToMainButton" class="w-full mt-auto">Back to Main Menu</button>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for app state
+        let userData = {};
+        let currentScreen = 'menuScreen';
+        let subjects = [];
+        let studyTimer = null;
+        let breakTimer = null;
+        let studyStartTime = 0;
+        let breakStartTime = 0;
+        let totalStudyDuration = 0; // Total time spent studying in current session
+        let sessionSubjectsDurations = {}; // {subjectName: durationInSeconds}
+        let currentSubject = '';
+        let isStudying = false;
+        let isBreak = false;
+        let wakeLock = null;
+        let breakCount = 0; // Counter for breaks taken
+        let totalBreakDuration = 0; // Total time spent on breaks
+        let maxBreaksAllowed = 0; // Max number of breaks allowed (0 for unlimited)
+        let maxBreakDurationSeconds = 0; // Max duration for each break (0 for unlimited)
+        let extraBreaksUsed = 0; // Counter for breaks taken beyond the limit
+
+        // DOM Elements
+        const menuScreen = document.getElementById('menuScreen');
+        const userNameInput = document.getElementById('userNameInput');
+        const schoolNameInput = document.getElementById('schoolNameInput');
+        const enterAppButton = document.getElementById('enterAppButton');
+
+        const mainAppScreen = document.getElementById('mainAppScreen');
+        const subjectsList = document.getElementById('subjectsList');
+        const newSubjectInput = document.getElementById('newSubjectInput');
+        const addSubjectButton = document.getElementById('addSubjectButton');
+        const startStudyingButton = document.getElementById('startStudyingButton');
+        const maxBreaksInput = document.getElementById('maxBreaksInput');
+        const maxBreakDurationInput = document.getElementById('maxBreakDurationInput');
+
+        const studySessionScreen = document.getElementById('studySessionScreen');
+        const subjectSelect = document.getElementById('subjectSelect');
+        const startTimerButton = document.getElementById('startTimerButton');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const currentSubjectDisplay = document.getElementById('currentSubjectDisplay');
+        const takeBreakButton = document.getElementById('takeBreakButton');
+        const stopBreakButton = document.getElementById('stopBreakButton');
+        const forceExtraBreakButton = document.getElementById('forceExtraBreakButton'); // New button
+        const stopStudyingButton = document.getElementById('stopStudyingButton');
+        const endSessionButton = document.getElementById('endSessionButton');
+        const wakeLockMessage = document.getElementById('wakeLockMessage');
+
+        const overviewScreen = document.getElementById('overviewScreen');
+        const sessionSummaryText = document.getElementById('sessionSummaryText');
+        const overviewSubjects = document.getElementById('overviewSubjects');
+        const overviewBreaksTaken = document.getElementById('overviewBreaksTaken');
+        const overviewTotalBreakTime = document.getElementById('overviewTotalBreakTime');
+        const maxBreaksInfo = document.getElementById('maxBreaksInfo'); // New info element
+        const maxBreakDurationInfo = document.getElementById('maxBreakDurationInfo'); // New info element
+        const totalSessionTime = document.getElementById('totalSessionTime');
+        const backToMainButton = document.getElementById('backToMainButton');
+
+        // Function to switch screens
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+            currentScreen = screenId;
+        }
+
+        // Function to save data to local storage
+        function saveData() {
+            userData.name = userNameInput.value.trim();
+            userData.school = schoolNameInput.value.trim();
+            userData.maxBreaks = maxBreaksInput.value;
+            userData.maxBreakDuration = maxBreakDurationInput.value;
+            localStorage.setItem('analStudyData', JSON.stringify(userData));
+            localStorage.setItem('analStudySubjects', JSON.stringify(subjects));
+        }
+
+        // Function to load data from local storage
+        function loadData() {
+            const storedUserData = localStorage.getItem('analStudyData');
+            const storedSubjects = localStorage.getItem('analStudySubjects');
+
+            if (storedUserData) {
+                userData = JSON.parse(storedUserData);
+                userNameInput.value = userData.name || '';
+                schoolNameInput.value = userData.school || '';
+                maxBreaksInput.value = userData.maxBreaks || '';
+                maxBreakDurationInput.value = userData.maxBreakDuration || '';
+                maxBreaksAllowed = parseInt(userData.maxBreaks) || 0;
+                maxBreakDurationSeconds = parseInt(userData.maxBreakDuration) || 0;
+            }
+            if (storedSubjects) {
+                subjects = JSON.parse(storedSubjects);
+            } else {
+                subjects = ['Maths', 'Science', 'History']; // Default subjects
+            }
+        }
+
+        // Render subjects list on Main App Screen
+        function renderSubjects() {
+            subjectsList.innerHTML = '';
+            subjects.forEach(subject => {
+                const subjectItem = document.createElement('div');
+                subjectItem.className = 'subject-item';
+                subjectItem.innerHTML = `
+                    <span>${subject}</span>
+                    <button class="delete-button" data-subject="${subject}">Remove</button>
+                `;
+                subjectsList.appendChild(subjectItem);
+            });
+
+            // Add event listeners for remove buttons
+            document.querySelectorAll('.delete-button').forEach(button => {
+                button.onclick = (event) => {
+                    const subjectToRemove = event.target.dataset.subject;
+                    removeSubject(subjectToRemove);
+                };
+            });
+        }
+
+        // Add a new subject
+        function addSubject() {
+            const newSubject = newSubjectInput.value.trim();
+            if (newSubject && !subjects.includes(newSubject)) {
+                subjects.push(newSubject);
+                newSubjectInput.value = '';
+                saveData();
+                renderSubjects();
+                populateSubjectSelect();
+            }
+        }
+
+        // Remove a subject
+        function removeSubject(subjectToRemove) {
+            subjects = subjects.filter(subject => subject !== subjectToRemove);
+            saveData();
+            renderSubjects();
+            populateSubjectSelect();
+        }
+
+        // Populate subject dropdown for Study Session Screen
+        function populateSubjectSelect() {
+            subjectSelect.innerHTML = '';
+            if (subjects.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No subjects available. Add some!';
+                subjectSelect.appendChild(option);
+                startTimerButton.disabled = true;
+                return;
+            }
+            startTimerButton.disabled = false;
+            subjects.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject;
+                option.textContent = subject;
+                subjectSelect.appendChild(option);
+            });
+        }
+
+        // Format time for display
+        function formatTime(seconds) {
+            const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+            const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+            const s = String(seconds % 60).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        // Request Wake Lock to keep screen on
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLockMessage.style.display = 'block';
+                    wakeLock.addEventListener('release', () => {
+                        wakeLockMessage.style.display = 'none';
+                    });
+                } catch (err) {
+                    // The user has denied the request or the Wake Lock was not granted.
+                    wakeLockMessage.textContent = 'Screen might turn off during study. Grant permission for screen stay-on.';
+                    wakeLockMessage.style.display = 'block';
+                }
+            } else {
+                wakeLockMessage.textContent = 'Wake Lock API not supported by your browser. Screen might turn off.';
+                wakeLockMessage.style.display = 'block';
+            }
+        }
+
+        // Release Wake Lock
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+                wakeLockMessage.style.display = 'none';
+            }
+        }
+
+        // Start study timer
+        function startStudyTimer() {
+            if (isStudying) return; // Already studying
+
+            currentSubject = subjectSelect.value;
+            if (!currentSubject) {
+                // Using a custom message box instead of alert()
+                const messageBox = document.createElement('div');
+                messageBox.className = 'message-box';
+                messageBox.textContent = 'Please select a subject to start studying.';
+                studySessionScreen.insertBefore(messageBox, subjectSelect.nextSibling);
+                setTimeout(() => messageBox.remove(), 3000); // Remove message after 3 seconds
+                return;
+            }
+
+            isStudying = true;
+            isBreak = false;
+            studyStartTime = Date.now();
+            currentSubjectDisplay.textContent = `Studying: ${currentSubject}`;
+
+            // Initialize subject duration if not present
+            if (!sessionSubjectsDurations[currentSubject]) {
+                sessionSubjectsDurations[currentSubject] = 0;
+            }
+
+            // Hide start button, show break/stop buttons
+            startTimerButton.style.display = 'none';
+            takeBreakButton.style.display = 'block';
+            stopStudyingButton.style.display = 'block';
+            endSessionButton.style.display = 'block';
+            subjectSelect.disabled = true; // Disable subject selection while studying
+
+            requestWakeLock();
+
+            studyTimer = setInterval(() => {
+                totalStudyDuration += 1; // Increment total session duration
+                sessionSubjectsDurations[currentSubject] += 1; // Increment current subject duration
+                const elapsed = Math.floor((Date.now() - studyStartTime) / 1000);
+                timerDisplay.textContent = formatTime(elapsed);
+            }, 1000);
+        }
+
+        // Pause study timer and start break timer
+        function takeBreak() {
+            if (!isStudying || isBreak) return;
+
+            // Check break limit
+            if (maxBreaksAllowed > 0 && breakCount >= maxBreaksAllowed) {
+                // Display message and show force extra break button
+                const messageBox = document.createElement('div');
+                messageBox.className = 'message-box';
+                messageBox.textContent = `You have reached your break limit (${maxBreaksAllowed} breaks). Click 'Force Use Extra Break' to continue.`;
+                studySessionScreen.insertBefore(messageBox, takeBreakButton.nextSibling);
+                setTimeout(() => messageBox.remove(), 5000);
+
+                takeBreakButton.style.display = 'none';
+                forceExtraBreakButton.style.display = 'block';
+                return; // Prevent taking break with regular button
+            }
+
+            clearInterval(studyTimer);
+            isStudying = false;
+            isBreak = true;
+            breakStartTime = Date.now();
+            breakCount++; // Increment break count
+            currentSubjectDisplay.textContent = `On Break!`;
+
+            takeBreakButton.style.display = 'none';
+            stopBreakButton.style.display = 'block';
+            stopStudyingButton.disabled = true; // Cannot stop study while on break
+            endSessionButton.disabled = true; // Cannot end session while on break
+            releaseWakeLock(); // Release wake lock during break
+        }
+
+        // Force an extra break beyond the limit
+        function forceExtraBreak() {
+            if (isBreak) return; // Already on break, cannot force another
+
+            extraBreaksUsed++; // Increment extra breaks
+            clearInterval(studyTimer);
+            isStudying = false;
+            isBreak = true;
+            breakStartTime = Date.now();
+            breakCount++; // Still count this break in total breaks
+            currentSubjectDisplay.textContent = `On Break! (Extra Break)`;
+
+            takeBreakButton.style.display = 'none'; // Ensure regular button is hidden
+            forceExtraBreakButton.style.display = 'none'; // Hide force button once used
+            stopBreakButton.style.display = 'block';
+            stopStudyingButton.disabled = true;
+            endSessionButton.disabled = true;
+            releaseWakeLock();
+        }
+
+        // Stop break timer and resume study timer
+        function stopBreak() {
+            if (!isBreak) return;
+
+            const currentBreakDuration = Math.floor((Date.now() - breakStartTime) / 1000);
+            totalBreakDuration += currentBreakDuration; // Add break duration
+
+            // Check break time limit
+            if (maxBreakDurationSeconds > 0 && currentBreakDuration > maxBreakDurationSeconds) {
+                const overtime = currentBreakDuration - maxBreakDurationSeconds;
+                const messageBox = document.createElement('div');
+                messageBox.className = 'message-box';
+                messageBox.textContent = `You went over your break time limit by ${formatTime(overtime)}!`;
+                studySessionScreen.insertBefore(messageBox, timerDisplay.nextSibling);
+                setTimeout(() => messageBox.remove(), 5000);
+            }
+
+            isBreak = false;
+            // Resume study timer from where it left off
+            studyStartTime = Date.now(); // Reset start time for accurate elapsed calculation
+            currentSubjectDisplay.textContent = `Studying: ${currentSubject}`;
+
+            takeBreakButton.style.display = 'block';
+            stopBreakButton.style.display = 'none';
+            forceExtraBreakButton.style.display = 'none'; // Hide force button when break ends
+            stopStudyingButton.disabled = false;
+            endSessionButton.disabled = false;
+            requestWakeLock(); // Re-request wake lock
+
+            studyTimer = setInterval(() => {
+                totalStudyDuration += 1;
+                sessionSubjectsDurations[currentSubject] += 1;
+                const elapsed = Math.floor((Date.now() - studyStartTime) / 1000);
+                timerDisplay.textContent = formatTime(elapsed);
+            }, 1000);
+        }
+
+        // Stop current studying, allow subject change
+        function stopStudying() {
+            if (!isStudying && !isBreak) return; // Not studying or on break
+
+            clearInterval(studyTimer);
+            clearInterval(breakTimer); // Ensure break timer is cleared if it was active
+            isStudying = false;
+            isBreak = false;
+            timerDisplay.textContent = '00:00:00';
+            currentSubjectDisplay.textContent = '';
+
+            // Ensure all buttons are correctly displayed/hidden and enabled
+            startTimerButton.style.display = 'block';
+            takeBreakButton.style.display = 'block';
+            stopBreakButton.style.display = 'none';
+            forceExtraBreakButton.style.display = 'none'; // Ensure this is hidden
+            stopStudyingButton.style.display = 'block';
+            endSessionButton.style.display = 'block';
+
+            subjectSelect.disabled = false;
+            stopStudyingButton.disabled = false; // Ensure it's not disabled if coming from break
+            endSessionButton.disabled = false; // Ensure it's not disabled if coming from break
+            releaseWakeLock(); // Release wake lock
+        }
+
+        // End the entire study session
+        function endSession() {
+            clearInterval(studyTimer);
+            clearInterval(breakTimer);
+            isStudying = false;
+            isBreak = false;
+            releaseWakeLock();
+
+            renderOverview();
+            showScreen('overviewScreen');
+
+            // Reset session data for next study
+            totalStudyDuration = 0;
+            sessionSubjectsDurations = {};
+            currentSubject = '';
+            breakCount = 0; // Reset break count
+            totalBreakDuration = 0; // Reset total break duration
+            extraBreaksUsed = 0; // Reset extra breaks
+            timerDisplay.textContent = '00:00:00';
+            currentSubjectDisplay.textContent = '';
+            startTimerButton.style.display = 'block';
+            takeBreakButton.style.display = 'block';
+            stopBreakButton.style.display = 'none';
+            forceExtraBreakButton.style.display = 'none'; // Ensure this is hidden
+            stopStudyingButton.style.display = 'block';
+            endSessionButton.style.display = 'block';
+            subjectSelect.disabled = false;
+        }
+
+        // Render session overview
+        function renderOverview() {
+            overviewSubjects.innerHTML = '';
+            let maxDuration = 0;
+            for (const subject in sessionSubjectsDurations) {
+                if (sessionSubjectsDurations[subject] > maxDuration) {
+                    maxDuration = sessionSubjectsDurations[subject];
+                }
+            }
+
+            let mostStudiedSubject = '';
+            let maxSubjectDuration = 0;
+            for (const subject in sessionSubjectsDurations) {
+                if (sessionSubjectsDurations[subject] > maxSubjectDuration) {
+                    maxSubjectDuration = sessionSubjectsDurations[subject];
+                    mostStudiedSubject = subject;
+                }
+            }
+
+            let summaryText = '';
+            if (Object.keys(sessionSubjectsDurations).length > 0) {
+                summaryText = `Great job! You focused most on ${mostStudiedSubject} today.`;
+            } else {
+                summaryText = 'No subjects were actively studied in this session.';
+            }
+            sessionSummaryText.textContent = summaryText;
+
+
+            if (Object.keys(sessionSubjectsDurations).length === 0) {
+                overviewSubjects.innerHTML = '<p class="text-center text-gray-400">No subjects recorded for this session.</p>';
+            } else {
+                for (const subject in sessionSubjectsDurations) {
+                    const duration = sessionSubjectsDurations[subject];
+                    const percentage = maxDuration > 0 ? (duration / maxDuration) * 100 : 0;
+
+                    const subjectOverviewItem = document.createElement('div');
+                    subjectOverviewItem.className = 'bg-gray-700 p-3 rounded-xl mb-2';
+                    subjectOverviewItem.innerHTML = `
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-semibold">${subject}</span>
+                            <span class="text-sm text-blue-300">${formatTime(duration)}</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: ${percentage}%;"></div>
+                        </div>
+                    `;
+                    overviewSubjects.appendChild(subjectOverviewItem);
+                }
+            }
+            totalSessionTime.textContent = formatTime(totalStudyDuration);
+            overviewBreaksTaken.textContent = `${breakCount} breaks (${extraBreaksUsed} extra)`;
+            overviewTotalBreakTime.textContent = formatTime(totalBreakDuration);
+
+            // Clear previous info and display new ones
+            maxBreaksInfo.style.display = 'none';
+            maxBreakDurationInfo.style.display = 'none';
+
+            if (maxBreaksAllowed > 0) {
+                maxBreaksInfo.textContent = `Max breaks allowed: ${maxBreaksAllowed}`;
+                maxBreaksInfo.style.display = 'block';
+            }
+            if (maxBreakDurationSeconds > 0) {
+                maxBreakDurationInfo.textContent = `Max break duration: ${formatTime(maxBreakDurationSeconds)}`;
+                maxBreakDurationInfo.style.display = 'block';
+            }
+        }
+
+        // Event Listeners
+        enterAppButton.onclick = () => {
+            saveData(); // Save data including new break settings
+            showScreen('mainAppScreen');
+            renderSubjects();
+            populateSubjectSelect();
+        };
+
+        addSubjectButton.onclick = addSubject;
+        newSubjectInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addSubject();
+            }
+        });
+
+        startStudyingButton.onclick = () => {
+            showScreen('studySessionScreen');
+            populateSubjectSelect();
+            // Reset timer display and buttons for a new session
+            timerDisplay.textContent = '00:00:00';
+            currentSubjectDisplay.textContent = '';
+            startTimerButton.style.display = 'block';
+            takeBreakButton.style.display = 'block';
+            stopBreakButton.style.display = 'none';
+            forceExtraBreakButton.style.display = 'none'; // Ensure hidden at start of session
+            stopStudyingButton.style.display = 'block';
+            endSessionButton.style.display = 'block';
+            subjectSelect.disabled = false;
+        };
+
+        startTimerButton.onclick = startStudyTimer;
+        takeBreakButton.onclick = takeBreak;
+        stopBreakButton.onclick = stopBreak;
+        forceExtraBreakButton.onclick = forceExtraBreak; // Event listener for new button
+        stopStudyingButton.onclick = stopStudying;
+        endSessionButton.onclick = endSession;
+        backToMainButton.onclick = () => {
+            showScreen('mainAppScreen');
+            renderSubjects();
+            populateSubjectSelect();
+        };
+
+        // Initialize the app on page load
+        window.onload = () => {
+            loadData();
+            if (userData.name) {
+                // If user data exists, skip menu and go to main app
+                showScreen('mainAppScreen');
+                renderSubjects();
+                populateSubjectSelect();
+            } else {
+                // Otherwise, show the menu screen
+                showScreen('menuScreen');
+            }
+        };
+    </script>
+</body>
+</html>
