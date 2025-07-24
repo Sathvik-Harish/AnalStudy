@@ -8,6 +8,55 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // Global Firebase variables (will be initialized in main script)
+        window.firebaseApp = null;
+        window.db = null;
+        window.auth = null;
+        window.userId = null; // Firebase Auth UID
+        window.userAnalId = null; // Custom Anal ID for pairing
+
+        // Initialize Firebase
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; // Use provided app ID
+
+        if (Object.keys(firebaseConfig).length > 0) {
+            window.firebaseApp = initializeApp(firebaseConfig);
+            window.db = getFirestore(window.firebaseApp);
+            window.auth = getAuth(window.firebaseApp);
+
+            // Authenticate with custom token or anonymously
+            onAuthStateChanged(window.auth, async (user) => {
+                if (!user) {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined') {
+                            await signInWithCustomToken(window.auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(window.auth);
+                        }
+                    } catch (error) {
+                        console.error("Firebase authentication failed:", error);
+                    }
+                }
+                window.userId = window.auth.currentUser?.uid || crypto.randomUUID(); // Fallback for userId
+                console.log("Firebase initialized. User ID:", window.userId);
+                // Trigger app initialization after Firebase is ready
+                window.dispatchEvent(new CustomEvent('firebaseReady'));
+            });
+        } else {
+            console.warn("Firebase config not found. Running in local-only mode.");
+            // If no Firebase config, proceed with local-only mode after a short delay
+            setTimeout(() => {
+                window.userId = crypto.randomUUID(); // Generate a local ID
+                window.dispatchEvent(new CustomEvent('firebaseReady'));
+            }, 100);
+        }
+    </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -237,12 +286,85 @@
             color: #e2e8f0;
             font-size: 0.95rem;
         }
+
+        /* Modal Styling */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            display: none; /* Hidden by default */
+        }
+        .modal-content {
+            background-color: #2d3748;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 350px;
+            text-align: center;
+        }
+        .modal-content h2 {
+            color: #63b3ed;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .modal-content p {
+            color: #e2e8f0;
+            margin-bottom: 1rem;
+        }
+        .modal-content input {
+            background-color: #4a5568;
+            border: 1px solid #4a5568;
+            color: #e2e8f0;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        .modal-content button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 0 0.5rem;
+        }
+        .modal-content .button-group {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .modal-content .button-group button {
+            margin-bottom: 0; /* Override default margin-bottom */
+        }
+        .help-icon {
+            font-size: 0.8em;
+            vertical-align: super;
+            cursor: pointer;
+            color: #63b3ed;
+            margin-left: 0.2em;
+        }
     </style>
 </head>
 <body>
     <div class="app-container">
+        <!-- Initial Auth Screen -->
+        <div id="initialAuthScreen" class="screen active">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">AnalStudy</h1>
+            <p class="text-center mb-4">Welcome back or join us!</p>
+            <button id="loginAnalIdButton" class="w-full">Login using Anal ID <span class="help-icon" data-help="login-anal-id">?</span></button>
+            <button id="signupButton" class="w-full mt-4">Signup</button>
+        </div>
+
         <!-- Privacy Policy Screen -->
-        <div id="privacyPolicyScreen" class="screen active">
+        <div id="privacyPolicyScreen" class="screen">
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Privacy Policy</h1>
             <p class="mb-4 text-gray-300">Please read our privacy policy before continuing:</p>
             <ul class="list-disc list-inside text-gray-400 mb-6">
@@ -267,14 +389,14 @@
             <button id="updateContinueButton" class="w-full">Continue to App</button>
         </div>
 
-        <!-- Menu Screen -->
+        <!-- Menu Screen (Signup) -->
         <div id="menuScreen" class="screen">
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">AnalStudy</h1>
-            <p class="text-center mb-4">Welcome to your study companion!</p>
+            <p class="text-center mb-4">Welcome! Please tell us a bit about yourself.</p>
             <input type="text" id="userNameInput" placeholder="Your Name" class="w-full">
             <input type="text" id="schoolNameInput" placeholder="School Name (Optional)" class="w-full">
             <button id="enterAppButton" class="w-full">Enter App</button>
-            <p class="text-sm text-center text-gray-400 mt-4">Your data will be saved in your browser's cache.</p>
+            <p class="text-sm text-center text-gray-400 mt-4">Your data will be saved to the cloud.</p>
         </div>
 
         <!-- Main App Screen -->
@@ -386,6 +508,7 @@
             <label for="settingsSchoolNameInput" class="text-gray-300 text-sm mb-1 block">School Name (Optional):</label>
             <input type="text" id="settingsSchoolNameInput" placeholder="School Name (Optional)" class="w-full mb-4">
             <button id="saveSettingsButton" class="w-full">Save Settings</button>
+            <button id="pairDeviceButton" class="w-full mt-4">Pair with New Device</button>
             <button id="viewPrivacyPolicyButton" class="w-full mt-4">View Privacy Policy</button>
             <button id="patchNotesButton" class="w-full mt-4">Patch Notes & Updates</button>
             <button id="helpButton" class="w-full mt-4">Help</button>
@@ -408,8 +531,9 @@
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Help & Features</h1>
             <h2 class="text-xl font-semibold text-blue-300 mb-2">Getting Started:</h2>
             <ul class="list-disc list-inside text-gray-300 mb-4">
-                <li>On first launch, accept the Privacy Policy.</li>
-                <li>Enter your Name and School (optional) on the welcome screen.</li>
+                <li>On first launch, choose "Signup" to create a new account or "Login using Anal ID" to pair an existing account.</li>
+                <li>After signup/login, accept the Privacy Policy.</li>
+                <li>Enter your Name and School (optional) on the welcome screen (for new signups).</li>
             </ul>
 
             <h2 class="text-xl font-semibold text-blue-300 mb-2">Subjects:</h2>
@@ -456,6 +580,7 @@
             <h2 class="text-xl font-semibold text-blue-300 mb-2">Settings:</h2>
             <ul class="list-disc list-inside text-gray-300 mb-4">
                 <li>Change your Name and School.</li>
+                <li>**Pair with New Device:** Get your unique Anal ID to log in on other devices.</li>
                 <li>View the Privacy Policy.</li>
                 <li>Access "Patch Notes & Updates" for app version history.</li>
                 <li>Access this "Help" section.</li>
@@ -464,14 +589,65 @@
             <button id="backToSettingsFromHelpButton" class="w-full mt-auto">Back to Settings</button>
         </div>
 
-        <!-- Modal for Renaming Session -->
-        <div id="renameModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4" style="display: none;">
-            <div class="bg-gray-800 p-6 rounded-xl shadow-lg w-full max-w-xs">
-                <h2 class="text-xl font-bold text-blue-400 mb-4">Rename Session</h2>
-                <input type="text" id="newSessionNameInput" placeholder="Enter new session name" class="w-full mb-4">
-                <div class="flex justify-end gap-2">
-                    <button id="cancelRenameButton" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">Cancel</button>
-                    <button id="confirmRenameButton" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">Rename</button>
+        <!-- Modals -->
+        <!-- Rename Session Modal -->
+        <div id="renameModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-xl font-bold mb-4">Rename Session</h2>
+                <input type="text" id="newSessionNameInput" placeholder="Enter new session name">
+                <div class="button-group">
+                    <button id="cancelRenameButton" class="bg-gray-600 hover:bg-gray-700">Cancel</button>
+                    <button id="confirmRenameButton" class="bg-blue-500 hover:bg-blue-600">Rename</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Anal ID Input Modal -->
+        <div id="analIdInputModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-xl font-bold mb-4">Enter Anal ID <span class="help-icon" data-help="anal-id-input">?</span></h2>
+                <input type="text" id="analIdLoginInput" placeholder="Enter your Anal ID">
+                <div class="button-group">
+                    <button id="cancelAnalIdLoginButton" class="bg-gray-600 hover:bg-gray-700">Cancel</button>
+                    <button id="submitAnalIdLoginButton" class="bg-blue-500 hover:bg-blue-600">Login</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Anal ID Display Modal -->
+        <div id="analIdDisplayModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-xl font-bold mb-4">Your Anal ID</h2>
+                <p class="text-gray-300 mb-4">Use this ID to log in on other devices:</p>
+                <p id="displayedAnalId" class="text-blue-300 text-2xl font-bold break-all mb-4"></p>
+                <div class="button-group justify-center">
+                    <button id="copyAnalIdButton" class="bg-blue-500 hover:bg-blue-600">Copy ID</button>
+                    <button id="closeAnalIdDisplayButton" class="bg-gray-600 hover:bg-gray-700">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Verification Modal -->
+        <div id="verificationModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-xl font-bold mb-4">Verify Account <span class="help-icon" data-help="verification">?</span></h2>
+                <p class="text-gray-300 mb-4">Please enter the name and school associated with this Anal ID to verify.</p>
+                <input type="text" id="verifyNameInput" placeholder="Your Name">
+                <input type="text" id="verifySchoolInput" placeholder="School Name (Optional)">
+                <div class="button-group">
+                    <button id="cancelVerificationButton" class="bg-gray-600 hover:bg-gray-700">Cancel</button>
+                    <button id="submitVerificationButton" class="bg-blue-500 hover:bg-blue-600">Verify</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Modals -->
+        <div id="helpModal" class="modal">
+            <div class="modal-content">
+                <h2 id="helpModalTitle" class="text-xl font-bold mb-4"></h2>
+                <p id="helpModalContent" class="text-gray-300 mb-4"></p>
+                <div class="button-group justify-center">
+                    <button id="closeHelpModalButton" class="bg-blue-500 hover:bg-blue-600">Got It!</button>
                 </div>
             </div>
         </div>
@@ -529,20 +705,51 @@
                 ]
             },
             {
-                version: "1.6", // Current version
+                version: "1.6",
                 title: "New Update Notification & Enhanced UX",
                 notes: [
                     "Implemented a one-time update notification screen on new app versions.",
                     "Added a 'Delete Session' confirmation modal for better user experience.",
                     "Updated Patch Notes and Help sections to reflect all changes."
                 ]
+            },
+            {
+                version: "1.7", // Current version
+                title: "Cloud Sync & Multi-Device Pairing",
+                notes: [
+                    "Integrated Firebase Firestore for cloud data storage and synchronization.",
+                    "Introduced 'Anal ID' for seamless login and pairing across multiple devices.",
+                    "New initial login/signup screen for improved user onboarding.",
+                    "All user data (name, school, subjects, sessions) now saved to the cloud.",
+                    "Updated help and patch notes to include new authentication features."
+                ]
             }
         ];
-        const currentAppVersion = "1.6"; // Define the current version of the app
+        const currentAppVersion = "1.7"; // Define the current version of the app
+
+        // Help content for tooltips
+        const helpContent = {
+            "login-anal-id": {
+                title: "Login using Anal ID",
+                content: "If you've already signed up on another device, you can use your unique 'Anal ID' to log in here and sync your data."
+            },
+            "anal-id-input": {
+                title: "Enter Your Anal ID",
+                content: "This is the unique ID generated when you first signed up. Enter it here to log in and access your saved study data."
+            },
+            "verification": {
+                title: "Account Verification",
+                content: "To ensure it's you, please enter the Name and School (if provided during signup) associated with the Anal ID you entered."
+            },
+            "pair-device": {
+                title: "Pair with New Device",
+                content: "Your unique Anal ID is displayed here. Copy this ID and use it on another device by selecting 'Login using Anal ID' on its initial screen. This will sync your study data."
+            }
+        };
 
         // Global variables for app state
         let userData = {};
-        let currentScreen = 'privacyPolicyScreen'; // Initial screen for all users
+        let currentScreen = 'initialAuthScreen'; // Start with initial auth screen
         let subjects = [];
         let sessionTimerInterval = null;
         let currentSubjectStartTime = 0;
@@ -559,12 +766,20 @@
         let currentChart3 = null;
         let currentChart4 = null;
 
+        // Firebase related variables (initialized in the module script)
+        // These will be assigned from window.db, window.auth etc. after firebaseReady
+        // No need to declare them here, as we'll use window.db directly.
+
         // DOM Elements
+        const initialAuthScreen = document.getElementById('initialAuthScreen');
+        const loginAnalIdButton = document.getElementById('loginAnalIdButton');
+        const signupButton = document.getElementById('signupButton');
+
         const privacyPolicyScreen = document.getElementById('privacyPolicyScreen');
         const privacyAcceptCheckbox = document.getElementById('privacyAcceptCheckbox');
         const privacyContinueButton = document.getElementById('privacyContinueButton');
 
-        const updateNotificationScreen = document.getElementById('updateNotificationScreen'); // New screen
+        const updateNotificationScreen = document.getElementById('updateNotificationScreen');
         const updateTitle = document.getElementById('updateTitle');
         const updateNotes = document.getElementById('updateNotes');
         const updateContinueButton = document.getElementById('updateContinueButton');
@@ -620,6 +835,7 @@
         const settingsUserNameInput = document.getElementById('settingsUserNameInput');
         const settingsSchoolNameInput = document.getElementById('settingsSchoolNameInput');
         const saveSettingsButton = document.getElementById('saveSettingsButton');
+        const pairDeviceButton = document.getElementById('pairDeviceButton'); // New button
         const viewPrivacyPolicyButton = document.getElementById('viewPrivacyPolicyButton');
         const patchNotesButton = document.getElementById('patchNotesButton');
         const helpButton = document.getElementById('helpButton');
@@ -632,11 +848,54 @@
         const helpScreen = document.getElementById('helpScreen');
         const backToSettingsFromHelpButton = document.getElementById('backToSettingsFromHelpButton');
 
+        // Modals
         const renameModal = document.getElementById('renameModal');
         const newSessionNameInput = document.getElementById('newSessionNameInput');
         const cancelRenameButton = document.getElementById('cancelRenameButton');
         const confirmRenameButton = document.getElementById('confirmRenameButton');
         let sessionToRenameIndex = -1;
+
+        const analIdInputModal = document.getElementById('analIdInputModal'); // New modal
+        const analIdLoginInput = document.getElementById('analIdLoginInput');
+        const cancelAnalIdLoginButton = document.getElementById('cancelAnalIdLoginButton');
+        const submitAnalIdLoginButton = document.getElementById('submitAnalIdLoginButton');
+
+        const analIdDisplayModal = document.getElementById('analIdDisplayModal'); // New modal
+        const displayedAnalId = document.getElementById('displayedAnalId');
+        const copyAnalIdButton = document.getElementById('copyAnalIdButton');
+        const closeAnalIdDisplayButton = document.getElementById('closeAnalIdDisplayButton');
+
+        const verificationModal = document.getElementById('verificationModal'); // New modal
+        const verifyNameInput = document.getElementById('verifyNameInput');
+        const verifySchoolInput = document.getElementById('verifySchoolInput');
+        const cancelVerificationButton = document.getElementById('cancelVerificationButton');
+        const submitVerificationButton = document.getElementById('submitVerificationButton');
+        let userToVerify = null; // Store user data during verification
+
+        const helpModal = document.getElementById('helpModal'); // Generic help modal for tooltips
+        const helpModalTitle = document.getElementById('helpModalTitle');
+        const helpModalContent = document.getElementById('helpModalContent');
+        const closeHelpModalButton = document.getElementById('closeHelpModalButton');
+
+
+        // Helper to show a modal
+        function showModal(modalElement) {
+            modalElement.style.display = 'flex';
+        }
+
+        // Helper to hide a modal
+        function hideModal(modalElement) {
+            modalElement.style.display = 'none';
+        }
+
+        // Function to show a temporary message box
+        function showMessageBox(message, duration = 3000) {
+            const messageBox = document.createElement('div');
+            messageBox.className = 'message-box fixed bottom-4 left-1/2 -translate-x-1/2 z-50';
+            messageBox.textContent = message;
+            document.body.appendChild(messageBox);
+            setTimeout(() => messageBox.remove(), duration);
+        }
 
         // Function to switch screens
         function showScreen(screenId) {
@@ -647,40 +906,97 @@
             currentScreen = screenId;
         }
 
-        // Function to save data to local storage
-        function saveData() {
-            userData.name = userNameInput.value.trim();
-            userData.school = schoolNameInput.value.trim();
-            userData.lastUpdateVersion = userData.lastUpdateVersion || "0.0"; // Ensure it's initialized
-            localStorage.setItem('analStudyData', JSON.stringify(userData));
-            localStorage.setItem('analStudySubjects', JSON.stringify(subjects));
-            localStorage.setItem('analStudyPastSessions', JSON.stringify(pastSessions));
+        // --- Firebase Data Operations ---
+        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        async function getUserDocRef(uid) {
+            if (!window.db) { // Explicitly use window.db
+                console.error("Firestore not initialized.");
+                return null;
+            }
+            return doc(window.db, `artifacts/${APP_ID}/users/${uid}`);
         }
 
-        // Function to load data from local storage
-        function loadData() {
-            const storedUserData = localStorage.getItem('analStudyData');
-            const storedSubjects = localStorage.getItem('analStudySubjects');
-            const storedPastSessions = localStorage.getItem('analStudyPastSessions');
-
-            if (storedUserData) {
-                userData = JSON.parse(storedUserData);
-                userNameInput.value = userData.name || '';
-                schoolNameInput.value = userData.school || '';
-                settingsUserNameInput.value = userData.name || '';
-                settingsSchoolNameInput.value = userData.school || '';
-            } else {
-                userData = { privacyAccepted: false, lastUpdateVersion: "0.0" }; // Default for new users
+        async function saveUserDataToFirestore() {
+            if (!window.userId) { // Explicitly use window.userId
+                console.error("User ID not available for saving data.");
+                return;
             }
-            if (storedSubjects) {
-                subjects = JSON.parse(storedSubjects);
-            } else {
+            const userDocRef = await getUserDocRef(window.userId); // Use window.userId
+            if (!userDocRef) return;
+
+            try {
+                // Ensure data is stringified if it contains complex objects/arrays
+                await setDoc(userDocRef, {
+                    analId: window.userAnalId, // Save the Anal ID from window.userAnalId
+                    name: userData.name,
+                    school: userData.school,
+                    privacyAccepted: userData.privacyAccepted,
+                    lastUpdateVersion: userData.lastUpdateVersion,
+                    subjects: JSON.stringify(subjects), // Store as JSON string
+                    pastSessions: JSON.stringify(pastSessions) // Store as JSON string
+                }, { merge: true }); // Use merge to avoid overwriting other fields
+                console.log("User data saved to Firestore.");
+            } catch (e) {
+                console.error("Error saving user data to Firestore:", e);
+                showMessageBox("Error saving data to cloud. Check console.");
+            }
+        }
+
+        async function loadUserDataFromFirestore() {
+            if (!window.userId) { // Explicitly use window.userId
+                console.error("User ID not available for loading data.");
+                return;
+            }
+            const userDocRef = await getUserDocRef(window.userId); // Use window.userId
+            if (!userDocRef) return;
+
+            try {
+                const docSnap = await getDoc(userDocRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    userData = {
+                        name: data.name || '',
+                        school: data.school || '',
+                        privacyAccepted: data.privacyAccepted || false,
+                        lastUpdateVersion: data.lastUpdateVersion || "0.0"
+                    };
+                    window.userAnalId = data.analId; // Load the Anal ID into window.userAnalId
+
+                    // Parse data from JSON strings
+                    subjects = data.subjects ? JSON.parse(data.subjects) : ['Maths', 'Science', 'History'];
+                    pastSessions = data.pastSessions ? JSON.parse(data.pastSessions) : [];
+
+                    userNameInput.value = userData.name;
+                    schoolNameInput.value = userData.school;
+                    settingsUserNameInput.value = userData.name;
+                    settingsSchoolNameInput.value = userData.school;
+                    console.log("User data loaded from Firestore.");
+                } else {
+                    console.log("No existing user data in Firestore for this user. Creating new profile.");
+                    // If no data, initialize with defaults and save
+                    userData = { privacyAccepted: false, lastUpdateVersion: "0.0", name: '', school: '' };
+                    subjects = ['Maths', 'Science', 'History'];
+                    pastSessions = [];
+                    window.userAnalId = crypto.randomUUID(); // Generate a new Anal ID for new users
+                    await saveUserDataToFirestore(); // Save initial data
+                }
+            } catch (e) {
+                console.error("Error loading user data from Firestore:", e);
+                showMessageBox("Error loading data from cloud. Check console.");
+                // Fallback to default local data if Firestore fails
+                userData = { privacyAccepted: false, lastUpdateVersion: "0.0", name: '', school: '' };
                 subjects = ['Maths', 'Science', 'History'];
-            }
-            if (storedPastSessions) {
-                pastSessions = JSON.parse(storedPastSessions);
+                pastSessions = [];
             }
         }
+
+        // Function to save data (now primarily to Firestore)
+        function saveDataWrapper() {
+            saveUserDataToFirestore();
+        }
+
+        // --- Core App Logic (mostly unchanged, now uses Firebase data) ---
 
         // Render subjects list on Main App Screen
         function renderSubjects() {
@@ -709,7 +1025,7 @@
             if (newSubject && !subjects.includes(newSubject)) {
                 subjects.push(newSubject);
                 newSubjectInput.value = '';
-                saveData();
+                saveDataWrapper();
                 renderSubjects();
                 populateSubjectSelect();
             }
@@ -718,7 +1034,7 @@
         // Remove a subject
         function removeSubject(subjectToRemove) {
             subjects = subjects.filter(subject => subject !== subjectToRemove);
-            saveData();
+            saveDataWrapper();
             renderSubjects();
             populateSubjectSelect();
         }
@@ -790,11 +1106,7 @@
             if (!isStudying) { // Currently paused or fresh start, so start/resume study
                 currentSubject = subjectSelect.value;
                 if (!currentSubject) {
-                    const messageBox = document.createElement('div');
-                    messageBox.className = 'message-box';
-                    messageBox.textContent = 'Please select a subject to start studying.';
-                    studySessionScreen.insertBefore(messageBox, subjectSelect.nextSibling);
-                    setTimeout(() => messageBox.remove(), 3000);
+                    showMessageBox('Please select a subject to start studying.');
                     return;
                 }
 
@@ -864,7 +1176,7 @@
                 subjectsStudied: { ...sessionSubjectsDurations }
             };
             pastSessions.push(sessionData);
-            saveData(); // Save updated pastSessions to local storage
+            saveDataWrapper(); // Save updated pastSessions to Firestore
 
             renderOverview(); // Render current session overview
             showScreen('overviewScreen');
@@ -943,7 +1255,7 @@
             sessionToRenameIndex = pastSessions.findIndex(session => session.id === sessionId);
             if (sessionToRenameIndex !== -1) {
                 newSessionNameInput.value = pastSessions[sessionToRenameIndex].name;
-                renameModal.style.display = 'flex';
+                showModal(renameModal);
             }
         }
 
@@ -953,46 +1265,44 @@
                 const newName = newSessionNameInput.value.trim();
                 if (newName) {
                     pastSessions[sessionToRenameIndex].name = newName;
-                    saveData();
+                    saveDataWrapper();
                     renderAllSessionsOverview(); // Re-render the list to show the new name
-                    renameModal.style.display = 'none';
+                    hideModal(renameModal);
                     sessionToRenameIndex = -1; // Reset
                 } else {
-                    const messageBox = document.createElement('div');
-                    messageBox.className = 'message-box';
-                    messageBox.textContent = 'Session name cannot be empty.';
-                    renameModal.querySelector('div').insertBefore(messageBox, newSessionNameInput.nextSibling);
-                    setTimeout(() => messageBox.remove(), 3000);
+                    showMessageBox('Session name cannot be empty.', 3000);
                 }
             }
         }
 
         // Function to delete a session
         function deleteSession(sessionId) {
-            // Using a custom message box instead of confirm()
             const confirmDeleteModal = document.createElement('div');
             confirmDeleteModal.id = 'confirmDeleteModal';
-            confirmDeleteModal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4';
+            confirmDeleteModal.className = 'modal'; // Use modal class
             confirmDeleteModal.innerHTML = `
-                <div class="bg-gray-800 p-6 rounded-xl shadow-lg w-full max-w-xs">
-                    <h2 class="text-xl font-bold text-blue-400 mb-4">Confirm Delete</h2>
+                <div class="modal-content">
+                    <h2 class="text-xl font-bold mb-4">Confirm Delete</h2>
                     <p class="text-gray-300 mb-4">Are you sure you want to delete this session? This action cannot be undone.</p>
-                    <div class="flex justify-end gap-2">
-                        <button id="cancelDeleteButton" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">Cancel</button>
-                        <button id="confirmDeleteButton" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg">Delete</button>
+                    <div class="button-group">
+                        <button id="cancelDeleteButton" class="bg-gray-600 hover:bg-gray-700">Cancel</button>
+                        <button id="confirmDeleteButton" class="bg-red-500 hover:bg-red-600">Delete</button>
                     </div>
                 </div>
             `;
             document.body.appendChild(confirmDeleteModal);
+            showModal(confirmDeleteModal); // Show the modal
 
             document.getElementById('cancelDeleteButton').onclick = () => {
+                hideModal(confirmDeleteModal);
                 confirmDeleteModal.remove();
             };
 
             document.getElementById('confirmDeleteButton').onclick = () => {
                 pastSessions = pastSessions.filter(session => session.id !== sessionId);
-                saveData();
+                saveDataWrapper();
                 renderAllSessionsOverview(); // Re-render the list
+                hideModal(confirmDeleteModal);
                 confirmDeleteModal.remove();
             };
         }
@@ -1275,7 +1585,44 @@
             });
         }
 
-        // Event Listeners
+        // --- Authentication/Flow Management ---
+
+        // Function to proceed after initial Firebase auth (called by firebaseReady event)
+        async function proceedAfterFirebaseReady() {
+            userId = window.auth.currentUser?.uid; // Ensure userId is set from Firebase Auth
+            console.log("Proceeding with app initialization for Firebase User ID:", userId);
+
+            await loadUserDataFromFirestore(); // Load user data from Firestore
+
+            // Determine which screen to show first based on user data
+            if (!userData.privacyAccepted) {
+                showScreen('privacyPolicyScreen');
+            } else if (userData.lastUpdateVersion < currentAppVersion) {
+                renderUpdateNotification();
+                showScreen('updateNotificationScreen');
+            } else if (userData.name) { // User has name, implies they've gone through signup/login
+                showScreen('mainAppScreen');
+                renderSubjects();
+                populateSubjectSelect();
+            } else { // User is authenticated but no name, implies new signup
+                showScreen('menuScreen'); // Go to name/school input
+            }
+        }
+
+        // --- Event Listeners ---
+
+        // Initial Auth Screen
+        loginAnalIdButton.onclick = () => {
+            showModal(analIdInputModal);
+            analIdLoginInput.value = ''; // Clear previous input
+        };
+
+        signupButton.onclick = async () => {
+            // For signup, we just move to the menu screen to get name/school.
+            // A new Anal ID will be generated and saved when they click "Enter App".
+            showScreen('menuScreen');
+        };
+
         // Privacy Policy Screen
         privacyAcceptCheckbox.onchange = () => {
             privacyContinueButton.disabled = !privacyAcceptCheckbox.checked;
@@ -1283,7 +1630,7 @@
 
         privacyContinueButton.onclick = () => {
             userData.privacyAccepted = true;
-            saveData();
+            saveDataWrapper(); // Save acceptance to Firestore
             // After accepting privacy, check for updates
             if (userData.lastUpdateVersion < currentAppVersion) {
                 renderUpdateNotification();
@@ -1300,7 +1647,7 @@
         // Update Notification Screen
         updateContinueButton.onclick = () => {
             userData.lastUpdateVersion = currentAppVersion; // Mark update as seen
-            saveData();
+            saveDataWrapper(); // Save update version to Firestore
             if (userData.name) {
                 showScreen('mainAppScreen');
                 renderSubjects();
@@ -1310,13 +1657,30 @@
             }
         };
 
-        enterAppButton.onclick = () => {
-            saveData();
-            showScreen('mainAppScreen');
-            renderSubjects();
-            populateSubjectSelect();
+        // Menu Screen (for initial signup)
+        enterAppButton.onclick = async () => {
+            // For new signups, ensure userAnalId is set and save data
+            if (!userAnalId) {
+                userAnalId = crypto.randomUUID(); // Generate Anal ID for new signup
+            }
+            userData.name = userNameInput.value.trim();
+            userData.school = schoolNameInput.value.trim();
+            await saveDataWrapper(); // Save initial user data including Anal ID
+
+            // After initial data is set, proceed to privacy policy
+            if (!userData.privacyAccepted) {
+                showScreen('privacyPolicyScreen');
+            } else if (userData.lastUpdateVersion < currentAppVersion) {
+                renderUpdateNotification();
+                showScreen('updateNotificationScreen');
+            } else {
+                showScreen('mainAppScreen');
+                renderSubjects();
+                populateSubjectSelect();
+            }
         };
 
+        // Main App Screen
         addSubjectButton.onclick = addSubject;
         newSubjectInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -1344,15 +1708,18 @@
             showScreen('settingsScreen');
         };
 
-        saveSettingsButton.onclick = () => {
+        // Settings Screen
+        saveSettingsButton.onclick = async () => {
             userData.name = settingsUserNameInput.value.trim();
             userData.school = settingsSchoolNameInput.value.trim();
-            saveData();
+            await saveDataWrapper(); // Save updated user data to Firestore
+            showMessageBox("Settings saved!");
             showScreen('mainAppScreen');
         };
 
-        backToMainFromSettingsButton.onclick = () => {
-            showScreen('mainAppScreen');
+        pairDeviceButton.onclick = () => { // Display Anal ID for pairing
+            displayedAnalId.textContent = userAnalId || "ID not available. Please sign up first.";
+            showModal(analIdDisplayModal);
         };
 
         viewPrivacyPolicyButton.onclick = () => {
@@ -1362,7 +1729,7 @@
         };
 
         patchNotesButton.onclick = () => {
-            renderPatchNotes(); // Render all patch notes
+            renderPatchNotes();
             showScreen('patchNotesScreen');
         };
 
@@ -1370,21 +1737,32 @@
             showScreen('helpScreen');
         };
 
+        backToMainFromSettingsButton.onclick = () => {
+            showScreen('mainAppScreen');
+        };
+
+        // Patch Notes Screen
         backToSettingsFromPatchNotesButton.onclick = () => {
             showScreen('settingsScreen');
         };
 
+        // Help Screen
         backToSettingsFromHelpButton.onclick = () => {
             showScreen('settingsScreen');
         };
 
+        // Study Session Screen
         toggleStudyPauseButton.onclick = toggleStudyPause;
         endSessionButton.onclick = endSession;
+
+        // Session Overview Screen
         backToMainButton.onclick = () => {
             showScreen('mainAppScreen');
             renderSubjects();
             populateSubjectSelect();
         };
+
+        // All Sessions Overview Screen
         backToMainFromAllSessionsButton.onclick = () => {
             showScreen('mainAppScreen');
         };
@@ -1394,6 +1772,7 @@
             showScreen('totalOverviewScreen');
         };
 
+        // Total Overview Screen
         filterChartsButton.onclick = () => {
             renderTotalOverview();
         };
@@ -1409,9 +1788,10 @@
             renderAllSessionsOverview();
         };
 
-        // Rename modal event listeners
+        // Modals Event Listeners
+        // Rename Session Modal
         cancelRenameButton.onclick = () => {
-            renameModal.style.display = 'none';
+            hideModal(renameModal);
             sessionToRenameIndex = -1;
         };
         confirmRenameButton.onclick = renameSession;
@@ -1420,6 +1800,127 @@
                 renameSession();
             }
         });
+
+        // Anal ID Input Modal
+        cancelAnalIdLoginButton.onclick = () => {
+            hideModal(analIdInputModal);
+            showScreen('initialAuthScreen'); // Go back to initial auth screen
+        };
+        submitAnalIdLoginButton.onclick = async () => {
+            const enteredAnalId = analIdLoginInput.value.trim();
+            if (!enteredAnalId) {
+                showMessageBox("Please enter an Anal ID.");
+                return;
+            }
+
+            try {
+                // Query Firestore to find the user with this Anal ID
+                const usersRef = collection(window.db, `artifacts/${APP_ID}/users`); // Use window.db
+                const q = query(usersRef, where("analId", "==", enteredAnalId));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    showMessageBox("Anal ID not found. Please check and try again.");
+                    return;
+                }
+
+                // Assuming Anal ID is unique, get the first matching user
+                userToVerify = querySnapshot.docs[0].data();
+                userToVerify.docId = querySnapshot.docs[0].id; // Store Firestore document ID
+
+                hideModal(analIdInputModal);
+                showModal(verificationModal);
+                verifyNameInput.value = ''; // Clear inputs
+                verifySchoolInput.value = '';
+            } catch (error) {
+                console.error("Error searching for Anal ID:", error);
+                showMessageBox("Error logging in. Please try again.");
+            }
+        };
+
+        // Anal ID Display Modal
+        copyAnalIdButton.onclick = () => {
+            const idText = displayedAnalId.textContent;
+            if (idText) {
+                // Use a temporary textarea for copying to clipboard
+                const tempTextArea = document.createElement('textarea');
+                tempTextArea.value = idText;
+                document.body.appendChild(tempTextArea);
+                tempTextArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempTextArea);
+                showMessageBox("Anal ID copied to clipboard!");
+            }
+        };
+        closeAnalIdDisplayButton.onclick = () => {
+            hideModal(analIdDisplayModal);
+        };
+
+        // Verification Modal
+        cancelVerificationButton.onclick = () => {
+            hideModal(verificationModal);
+            showScreen('initialAuthScreen'); // Go back to initial auth screen
+            userToVerify = null;
+        };
+        submitVerificationButton.onclick = async () => {
+            if (!userToVerify) {
+                showMessageBox("No user data to verify. Please try logging in again.");
+                return;
+            }
+
+            const enteredName = verifyNameInput.value.trim();
+            const enteredSchool = verifySchoolInput.value.trim();
+
+            // Simple verification: name must match, school is optional but if provided, must match
+            if (enteredName === userToVerify.name &&
+                (userToVerify.school === '' || enteredSchool === userToVerify.school)) {
+                
+                // For this simulation, we'll just load the verified user's data
+                // In a real app, you'd perform Firebase re-authentication or custom token sign-in here
+                // to link the current Firebase Auth user to the target user's data.
+                
+                // Set the current userId and userAnalId to the verified user's data
+                window.userId = userToVerify.docId; 
+                window.userAnalId = userToVerify.analId; 
+
+                // Load the verified user's data
+                await loadUserDataFromFirestore();
+                hideModal(verificationModal);
+                showMessageBox("Login successful!");
+
+                // Proceed to Privacy Policy -> Update Notification -> Main App
+                if (!userData.privacyAccepted) {
+                    showScreen('privacyPolicyScreen');
+                } else if (userData.lastUpdateVersion < currentAppVersion) {
+                    renderUpdateNotification();
+                    showScreen('updateNotificationScreen');
+                } else {
+                    showScreen('mainAppScreen');
+                    renderSubjects();
+                    populateSubjectSelect();
+                }
+
+            } else {
+                showMessageBox("Verification failed. Name or School does not match.");
+            }
+        };
+
+        // Help Icon Click Handler
+        document.querySelectorAll('.help-icon').forEach(icon => {
+            icon.onclick = (event) => {
+                const helpKey = event.target.dataset.help;
+                const content = helpContent[helpKey];
+                if (content) {
+                    helpModalTitle.textContent = content.title;
+                    helpModalContent.textContent = content.content;
+                    showModal(helpModal);
+                }
+            };
+        });
+
+        closeHelpModalButton.onclick = () => {
+            hideModal(helpModal);
+        };
 
         // Function to render the latest update notification
         function renderUpdateNotification() {
@@ -1438,7 +1939,7 @@
             patchNotesList.innerHTML = '';
             patchNotesData.forEach(patch => {
                 const li = document.createElement('li');
-                li.innerHTML = `**${patch.title} (v${patch.version}):**`;
+                li.innerHTML = `<strong>${patch.title} (v${patch.version}):</strong>`;
                 const ul = document.createElement('ul');
                 ul.className = 'list-disc list-inside ml-4 mt-1 mb-2';
                 patch.notes.forEach(note => {
@@ -1452,23 +1953,9 @@
         }
 
         // Initialize the app on page load
-        window.onload = () => {
-            loadData();
-
-            // Determine which screen to show first
-            if (!userData.privacyAccepted) {
-                showScreen('privacyPolicyScreen');
-            } else if (userData.lastUpdateVersion < currentAppVersion) {
-                renderUpdateNotification();
-                showScreen('updateNotificationScreen');
-            } else if (userData.name) {
-                showScreen('mainAppScreen');
-                renderSubjects();
-                populateSubjectSelect();
-            } else {
-                showScreen('menuScreen');
-            }
-        };
+        // This will now wait for the 'firebaseReady' event to be dispatched
+        // by the Firebase module script.
+        window.addEventListener('firebaseReady', proceedAfterFirebaseReady);
     </script>
 </body>
 </html>
