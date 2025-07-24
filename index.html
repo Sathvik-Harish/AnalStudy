@@ -11,7 +11,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // Global Firebase variables (will be initialized in main script)
@@ -19,7 +19,6 @@
         window.db = null;
         window.auth = null;
         window.userId = null; // Firebase Auth UID
-        window.userAnalId = null; // Custom Anal ID for pairing
 
         // Initialize Firebase
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
@@ -32,27 +31,34 @@
 
             // Authenticate with custom token or anonymously
             onAuthStateChanged(window.auth, async (user) => {
-                if (!user) {
+                if (user) {
+                    window.userId = user.uid;
+                    console.log("Firebase initialized. User ID:", window.userId);
+                    // Trigger app initialization after Firebase is ready
+                    window.dispatchEvent(new CustomEvent('firebaseReady'));
+                } else {
+                    // If no user, try to sign in anonymously if a token is provided
                     try {
-                        if (typeof __initial_auth_token !== 'undefined') {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await signInWithCustomToken(window.auth, __initial_auth_token);
                         } else {
-                            await signInAnonymously(window.auth);
+                            // If no token, or if anonymous sign-in is needed for initial access
+                            // we'll handle the login/signup flow in proceedAfterFirebaseReady
+                            window.userId = null; // Ensure userId is null if not authenticated
+                            window.dispatchEvent(new CustomEvent('firebaseReady'));
                         }
                     } catch (error) {
-                        console.error("Firebase authentication failed:", error);
+                        console.error("Firebase anonymous authentication failed:", error);
+                        window.userId = null;
+                        window.dispatchEvent(new CustomEvent('firebaseReady'));
                     }
                 }
-                window.userId = window.auth.currentUser?.uid || crypto.randomUUID(); // Fallback for userId
-                console.log("Firebase initialized. User ID:", window.userId);
-                // Trigger app initialization after Firebase is ready
-                window.dispatchEvent(new CustomEvent('firebaseReady'));
             });
         } else {
             console.warn("Firebase config not found. Running in local-only mode.");
             // If no Firebase config, proceed with local-only mode after a short delay
             setTimeout(() => {
-                window.userId = crypto.randomUUID(); // Generate a local ID
+                window.userId = crypto.randomUUID(); // Generate a local ID for local-only mode
                 window.dispatchEvent(new CustomEvent('firebaseReady'));
             }, 100);
         }
@@ -328,6 +334,20 @@
             width: 100%;
             margin-bottom: 1rem;
         }
+        .modal-content .input-with-button {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .modal-content .input-with-button input {
+            margin-bottom: 0; /* Remove bottom margin for input in this group */
+        }
+        .modal-content .input-with-button button {
+            margin-bottom: 0; /* Remove bottom margin for button in this group */
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            flex-shrink: 0; /* Prevent button from shrinking */
+        }
         .modal-content button {
             padding: 0.75rem 1.5rem;
             border-radius: 0.5rem;
@@ -359,8 +379,28 @@
         <div id="initialAuthScreen" class="screen active">
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">AnalStudy</h1>
             <p class="text-center mb-4">Welcome back or join us!</p>
-            <button id="loginAnalIdButton" class="w-full">Login using Anal ID <span class="help-icon" data-help="login-anal-id">?</span></button>
+            <button id="loginButton" class="w-full">Login</button>
             <button id="signupButton" class="w-full mt-4">Signup</button>
+        </div>
+
+        <!-- Login Screen -->
+        <div id="loginScreen" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Login</h1>
+            <input type="email" id="loginEmailInput" placeholder="Email" class="w-full">
+            <input type="password" id="loginPasswordInput" placeholder="Password" class="w-full">
+            <button id="submitLoginButton" class="w-full">Login</button>
+            <button id="backToInitialFromLogin" class="w-full mt-4 bg-gray-600 hover:bg-gray-700">Back</button>
+        </div>
+
+        <!-- Signup Screen -->
+        <div id="signupScreen" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Signup</h1>
+            <input type="email" id="signupEmailInput" placeholder="Email" class="w-full">
+            <input type="password" id="signupPasswordInput" placeholder="Password (min 6 characters)" class="w-full">
+            <input type="text" id="signupUserNameInput" placeholder="Your Name" class="w-full">
+            <input type="text" id="signupSchoolNameInput" placeholder="School Name (Optional)" class="w-full">
+            <button id="submitSignupButton" class="w-full">Create Account</button>
+            <button id="backToInitialFromSignup" class="w-full mt-4 bg-gray-600 hover:bg-gray-700">Back</button>
         </div>
 
         <!-- Privacy Policy Screen -->
@@ -387,16 +427,6 @@
                 <!-- Update notes will be dynamically inserted here -->
             </ul>
             <button id="updateContinueButton" class="w-full">Continue to App</button>
-        </div>
-
-        <!-- Menu Screen (Signup) -->
-        <div id="menuScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">AnalStudy</h1>
-            <p class="text-center mb-4">Welcome! Please tell us a bit about yourself.</p>
-            <input type="text" id="userNameInput" placeholder="Your Name" class="w-full">
-            <input type="text" id="schoolNameInput" placeholder="School Name (Optional)" class="w-full">
-            <button id="enterAppButton" class="w-full">Enter App</button>
-            <p class="text-sm text-center text-gray-400 mt-4">Your data will be saved to the cloud.</p>
         </div>
 
         <!-- Main App Screen -->
@@ -508,10 +538,10 @@
             <label for="settingsSchoolNameInput" class="text-gray-300 text-sm mb-1 block">School Name (Optional):</label>
             <input type="text" id="settingsSchoolNameInput" placeholder="School Name (Optional)" class="w-full mb-4">
             <button id="saveSettingsButton" class="w-full">Save Settings</button>
-            <button id="pairDeviceButton" class="w-full mt-4">Pair with New Device</button>
             <button id="viewPrivacyPolicyButton" class="w-full mt-4">View Privacy Policy</button>
             <button id="patchNotesButton" class="w-full mt-4">Patch Notes & Updates</button>
             <button id="helpButton" class="w-full mt-4">Help</button>
+            <button id="logoutButton" class="w-full mt-4 delete-button">Logout</button>
             <button id="backToMainFromSettingsButton" class="w-full mt-4">Back to Main Menu</button>
         </div>
 
@@ -531,7 +561,7 @@
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Help & Features</h1>
             <h2 class="text-xl font-semibold text-blue-300 mb-2">Getting Started:</h2>
             <ul class="list-disc list-inside text-gray-300 mb-4">
-                <li>On first launch, choose "Signup" to create a new account or "Login using Anal ID" to pair an existing account.</li>
+                <li>On first launch, choose "Signup" to create a new account or "Login" to access an existing one.</li>
                 <li>After signup/login, accept the Privacy Policy.</li>
                 <li>Enter your Name and School (optional) on the welcome screen (for new signups).</li>
             </ul>
@@ -580,10 +610,10 @@
             <h2 class="text-xl font-semibold text-blue-300 mb-2">Settings:</h2>
             <ul class="list-disc list-inside text-gray-300 mb-4">
                 <li>Change your Name and School.</li>
-                <li>**Pair with New Device:** Get your unique Anal ID to log in on other devices.</li>
                 <li>View the Privacy Policy.</li>
                 <li>Access "Patch Notes & Updates" for app version history.</li>
                 <li>Access this "Help" section.</li>
+                <li>**Logout:** Sign out of your account.</li>
             </ul>
 
             <button id="backToSettingsFromHelpButton" class="w-full mt-auto">Back to Settings</button>
@@ -602,46 +632,7 @@
             </div>
         </div>
 
-        <!-- Anal ID Input Modal -->
-        <div id="analIdInputModal" class="modal">
-            <div class="modal-content">
-                <h2 class="text-xl font-bold mb-4">Enter Anal ID <span class="help-icon" data-help="anal-id-input">?</span></h2>
-                <input type="text" id="analIdLoginInput" placeholder="Enter your Anal ID">
-                <div class="button-group">
-                    <button id="cancelAnalIdLoginButton" class="bg-gray-600 hover:bg-gray-700">Cancel</button>
-                    <button id="submitAnalIdLoginButton" class="bg-blue-500 hover:bg-blue-600">Login</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Anal ID Display Modal -->
-        <div id="analIdDisplayModal" class="modal">
-            <div class="modal-content">
-                <h2 class="text-xl font-bold mb-4">Your Anal ID</h2>
-                <p class="text-gray-300 mb-4">Use this ID to log in on other devices:</p>
-                <p id="displayedAnalId" class="text-blue-300 text-2xl font-bold break-all mb-4"></p>
-                <div class="button-group justify-center">
-                    <button id="copyAnalIdButton" class="bg-blue-500 hover:bg-blue-600">Copy ID</button>
-                    <button id="closeAnalIdDisplayButton" class="bg-gray-600 hover:bg-gray-700">Close</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Verification Modal -->
-        <div id="verificationModal" class="modal">
-            <div class="modal-content">
-                <h2 class="text-xl font-bold mb-4">Verify Account <span class="help-icon" data-help="verification">?</span></h2>
-                <p class="text-gray-300 mb-4">Please enter the name and school associated with this Anal ID to verify.</p>
-                <input type="text" id="verifyNameInput" placeholder="Your Name">
-                <input type="text" id="verifySchoolInput" placeholder="School Name (Optional)">
-                <div class="button-group">
-                    <button id="cancelVerificationButton" class="bg-gray-600 hover:bg-gray-700">Cancel</button>
-                    <button id="submitVerificationButton" class="bg-blue-500 hover:bg-blue-600">Verify</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Help Modals -->
+        <!-- Help Modals (generic, for tooltips) -->
         <div id="helpModal" class="modal">
             <div class="modal-content">
                 <h2 id="helpModalTitle" class="text-xl font-bold mb-4"></h2>
@@ -714,8 +705,8 @@
                 ]
             },
             {
-                version: "1.7", // Current version
-                title: "Cloud Sync & Multi-Device Pairing",
+                version: "1.7",
+                title: "Cloud Sync & Multi-Device Pairing (Previous)",
                 notes: [
                     "Integrated Firebase Firestore for cloud data storage and synchronization.",
                     "Introduced 'Anal ID' for seamless login and pairing across multiple devices.",
@@ -723,28 +714,23 @@
                     "All user data (name, school, subjects, sessions) now saved to the cloud.",
                     "Updated help and patch notes to include new authentication features."
                 ]
+            },
+            {
+                version: "1.8", // Current version
+                title: "Email/Password Authentication & Streamlined Login",
+                notes: [
+                    "Replaced 'Anal ID' system with traditional email and password authentication for signup and login.",
+                    "Simplified initial app flow with dedicated Login and Signup screens.",
+                    "Removed device pairing feature for a more direct user experience.",
+                    "Updated all relevant help and patch notes to reflect the new authentication method."
+                ]
             }
         ];
-        const currentAppVersion = "1.7"; // Define the current version of the app
+        const currentAppVersion = "1.8"; // Define the current version of the app
 
-        // Help content for tooltips
+        // Help content for tooltips (now only generic ones, specific to Anal ID removed)
         const helpContent = {
-            "login-anal-id": {
-                title: "Login using Anal ID",
-                content: "If you've already signed up on another device, you can use your unique 'Anal ID' to log in here and sync your data."
-            },
-            "anal-id-input": {
-                title: "Enter Your Anal ID",
-                content: "This is the unique ID generated when you first signed up. Enter it here to log in and access your saved study data."
-            },
-            "verification": {
-                title: "Account Verification",
-                content: "To ensure it's you, please enter the Name and School (if provided during signup) associated with the Anal ID you entered."
-            },
-            "pair-device": {
-                title: "Pair with New Device",
-                content: "Your unique Anal ID is displayed here. Copy this ID and use it on another device by selecting 'Login using Anal ID' on its initial screen. This will sync your study data."
-            }
+            // No specific help for login-anal-id, anal-id-input, verification, pair-device anymore
         };
 
         // Global variables for app state
@@ -767,13 +753,26 @@
         let currentChart4 = null;
 
         // Firebase related variables (initialized in the module script)
-        // These will be assigned from window.db, window.auth etc. after firebaseReady
-        // No need to declare them here, as we'll use window.db directly.
+        // We will use window.db, window.auth, window.userId directly.
 
         // DOM Elements
         const initialAuthScreen = document.getElementById('initialAuthScreen');
-        const loginAnalIdButton = document.getElementById('loginAnalIdButton');
+        const loginButton = document.getElementById('loginButton');
         const signupButton = document.getElementById('signupButton');
+
+        const loginScreen = document.getElementById('loginScreen');
+        const loginEmailInput = document.getElementById('loginEmailInput');
+        const loginPasswordInput = document.getElementById('loginPasswordInput');
+        const submitLoginButton = document.getElementById('submitLoginButton');
+        const backToInitialFromLogin = document.getElementById('backToInitialFromLogin');
+
+        const signupScreen = document.getElementById('signupScreen');
+        const signupEmailInput = document.getElementById('signupEmailInput');
+        const signupPasswordInput = document.getElementById('signupPasswordInput');
+        const signupUserNameInput = document.getElementById('signupUserNameInput');
+        const signupSchoolNameInput = document.getElementById('signupSchoolNameInput');
+        const submitSignupButton = document.getElementById('submitSignupButton');
+        const backToInitialFromSignup = document.getElementById('backToInitialFromSignup');
 
         const privacyPolicyScreen = document.getElementById('privacyPolicyScreen');
         const privacyAcceptCheckbox = document.getElementById('privacyAcceptCheckbox');
@@ -783,11 +782,6 @@
         const updateTitle = document.getElementById('updateTitle');
         const updateNotes = document.getElementById('updateNotes');
         const updateContinueButton = document.getElementById('updateContinueButton');
-
-        const menuScreen = document.getElementById('menuScreen');
-        const userNameInput = document.getElementById('userNameInput');
-        const schoolNameInput = document.getElementById('schoolNameInput');
-        const enterAppButton = document.getElementById('enterAppButton');
 
         const mainAppScreen = document.getElementById('mainAppScreen');
         const subjectsList = document.getElementById('subjectsList');
@@ -835,10 +829,10 @@
         const settingsUserNameInput = document.getElementById('settingsUserNameInput');
         const settingsSchoolNameInput = document.getElementById('settingsSchoolNameInput');
         const saveSettingsButton = document.getElementById('saveSettingsButton');
-        const pairDeviceButton = document.getElementById('pairDeviceButton'); // New button
         const viewPrivacyPolicyButton = document.getElementById('viewPrivacyPolicyButton');
         const patchNotesButton = document.getElementById('patchNotesButton');
         const helpButton = document.getElementById('helpButton');
+        const logoutButton = document.getElementById('logoutButton'); // New Logout button
         const backToMainFromSettingsButton = document.getElementById('backToMainFromSettingsButton');
 
         const patchNotesScreen = document.getElementById('patchNotesScreen');
@@ -854,23 +848,6 @@
         const cancelRenameButton = document.getElementById('cancelRenameButton');
         const confirmRenameButton = document.getElementById('confirmRenameButton');
         let sessionToRenameIndex = -1;
-
-        const analIdInputModal = document.getElementById('analIdInputModal'); // New modal
-        const analIdLoginInput = document.getElementById('analIdLoginInput');
-        const cancelAnalIdLoginButton = document.getElementById('cancelAnalIdLoginButton');
-        const submitAnalIdLoginButton = document.getElementById('submitAnalIdLoginButton');
-
-        const analIdDisplayModal = document.getElementById('analIdDisplayModal'); // New modal
-        const displayedAnalId = document.getElementById('displayedAnalId');
-        const copyAnalIdButton = document.getElementById('copyAnalIdButton');
-        const closeAnalIdDisplayButton = document.getElementById('closeAnalIdDisplayButton');
-
-        const verificationModal = document.getElementById('verificationModal'); // New modal
-        const verifyNameInput = document.getElementById('verifyNameInput');
-        const verifySchoolInput = document.getElementById('verifySchoolInput');
-        const cancelVerificationButton = document.getElementById('cancelVerificationButton');
-        const submitVerificationButton = document.getElementById('submitVerificationButton');
-        let userToVerify = null; // Store user data during verification
 
         const helpModal = document.getElementById('helpModal'); // Generic help modal for tooltips
         const helpModalTitle = document.getElementById('helpModalTitle');
@@ -928,7 +905,6 @@
             try {
                 // Ensure data is stringified if it contains complex objects/arrays
                 await setDoc(userDocRef, {
-                    analId: window.userAnalId, // Save the Anal ID from window.userAnalId
                     name: userData.name,
                     school: userData.school,
                     privacyAccepted: userData.privacyAccepted,
@@ -961,24 +937,23 @@
                         privacyAccepted: data.privacyAccepted || false,
                         lastUpdateVersion: data.lastUpdateVersion || "0.0"
                     };
-                    window.userAnalId = data.analId; // Load the Anal ID into window.userAnalId
 
                     // Parse data from JSON strings
                     subjects = data.subjects ? JSON.parse(data.subjects) : ['Maths', 'Science', 'History'];
                     pastSessions = data.pastSessions ? JSON.parse(data.pastSessions) : [];
 
-                    userNameInput.value = userData.name;
-                    schoolNameInput.value = userData.school;
+                    // Update UI inputs
+                    signupUserNameInput.value = userData.name;
+                    signupSchoolNameInput.value = userData.school;
                     settingsUserNameInput.value = userData.name;
                     settingsSchoolNameInput.value = userData.school;
                     console.log("User data loaded from Firestore.");
                 } else {
-                    console.log("No existing user data in Firestore for this user. Creating new profile.");
+                    console.log("No existing user data in Firestore for this user. Initializing new profile.");
                     // If no data, initialize with defaults and save
                     userData = { privacyAccepted: false, lastUpdateVersion: "0.0", name: '', school: '' };
                     subjects = ['Maths', 'Science', 'History'];
                     pastSessions = [];
-                    window.userAnalId = crypto.randomUUID(); // Generate a new Anal ID for new users
                     await saveUserDataToFirestore(); // Save initial data
                 }
             } catch (e) {
@@ -1589,38 +1564,141 @@
 
         // Function to proceed after initial Firebase auth (called by firebaseReady event)
         async function proceedAfterFirebaseReady() {
-            userId = window.auth.currentUser?.uid; // Ensure userId is set from Firebase Auth
-            console.log("Proceeding with app initialization for Firebase User ID:", userId);
-
-            await loadUserDataFromFirestore(); // Load user data from Firestore
-
-            // Determine which screen to show first based on user data
-            if (!userData.privacyAccepted) {
-                showScreen('privacyPolicyScreen');
-            } else if (userData.lastUpdateVersion < currentAppVersion) {
-                renderUpdateNotification();
-                showScreen('updateNotificationScreen');
-            } else if (userData.name) { // User has name, implies they've gone through signup/login
-                showScreen('mainAppScreen');
-                renderSubjects();
-                populateSubjectSelect();
-            } else { // User is authenticated but no name, implies new signup
-                showScreen('menuScreen'); // Go to name/school input
+            // Check if Firebase Auth is initialized and a user is already logged in
+            if (window.auth && window.auth.currentUser) {
+                window.userId = window.auth.currentUser.uid;
+                console.log("User already logged in. UID:", window.userId);
+                await loadUserDataFromFirestore(); // Load user data
+                
+                // Then proceed based on privacy and updates
+                if (!userData.privacyAccepted) {
+                    showScreen('privacyPolicyScreen');
+                } else if (userData.lastUpdateVersion < currentAppVersion) {
+                    renderUpdateNotification();
+                    showScreen('updateNotificationScreen');
+                } else {
+                    showScreen('mainAppScreen');
+                    renderSubjects();
+                    populateSubjectSelect();
+                }
+            } else {
+                // No user logged in, show initial auth screen
+                showScreen('initialAuthScreen');
             }
         }
 
         // --- Event Listeners ---
 
         // Initial Auth Screen
-        loginAnalIdButton.onclick = () => {
-            showModal(analIdInputModal);
-            analIdLoginInput.value = ''; // Clear previous input
+        loginButton.onclick = () => {
+            showScreen('loginScreen');
+            loginEmailInput.value = '';
+            loginPasswordInput.value = '';
         };
 
-        signupButton.onclick = async () => {
-            // For signup, we just move to the menu screen to get name/school.
-            // A new Anal ID will be generated and saved when they click "Enter App".
-            showScreen('menuScreen');
+        signupButton.onclick = () => {
+            showScreen('signupScreen');
+            signupEmailInput.value = '';
+            signupPasswordInput.value = '';
+            signupUserNameInput.value = '';
+            signupSchoolNameInput.value = '';
+        };
+
+        // Login Screen
+        backToInitialFromLogin.onclick = () => {
+            showScreen('initialAuthScreen');
+        };
+
+        submitLoginButton.onclick = async () => {
+            const email = loginEmailInput.value.trim();
+            const password = loginPasswordInput.value.trim();
+
+            if (!email || !password) {
+                showMessageBox("Please enter both email and password.");
+                return;
+            }
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(window.auth, email, password);
+                window.userId = userCredential.user.uid;
+                showMessageBox("Login successful!");
+                await loadUserDataFromFirestore(); // Load user data after successful login
+
+                // After login, verify privacy and updates
+                if (!userData.privacyAccepted) {
+                    showScreen('privacyPolicyScreen');
+                } else if (userData.lastUpdateVersion < currentAppVersion) {
+                    renderUpdateNotification();
+                    showScreen('updateNotificationScreen');
+                } else {
+                    showScreen('mainAppScreen');
+                    renderSubjects();
+                    populateSubjectSelect();
+                }
+
+            } catch (error) {
+                console.error("Login error:", error.code, error.message);
+                let errorMessage = "Login failed. Please check your email and password.";
+                if (error.code === 'auth/invalid-email') {
+                    errorMessage = "Invalid email format.";
+                } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                    errorMessage = "Incorrect email or password.";
+                }
+                showMessageBox(errorMessage);
+            }
+        };
+
+        // Signup Screen
+        backToInitialFromSignup.onclick = () => {
+            showScreen('initialAuthScreen');
+        };
+
+        submitSignupButton.onclick = async () => {
+            const email = signupEmailInput.value.trim();
+            const password = signupPasswordInput.value.trim();
+            const name = signupUserNameInput.value.trim();
+            const school = signupSchoolNameInput.value.trim();
+
+            if (!email || !password || !name) {
+                showMessageBox("Please enter email, password, and your name.");
+                return;
+            }
+            if (password.length < 6) {
+                showMessageBox("Password must be at least 6 characters long.");
+                return;
+            }
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(window.auth, email, password);
+                window.userId = userCredential.user.uid;
+                showMessageBox("Account created successfully!");
+
+                // Initialize new user data and save to Firestore
+                userData = {
+                    name: name,
+                    school: school,
+                    privacyAccepted: false, // Must accept privacy policy after signup
+                    lastUpdateVersion: "0.0" // Will be updated after update notification
+                };
+                subjects = ['Maths', 'Science', 'History']; // Default subjects for new users
+                pastSessions = []; // Empty sessions for new users
+                await saveUserDataToFirestore();
+
+                // After signup, proceed to privacy policy
+                showScreen('privacyPolicyScreen');
+
+            } catch (error) {
+                console.error("Signup error:", error.code, error.message);
+                let errorMessage = "Signup failed. Please try again.";
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = "This email is already registered.";
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = "Invalid email format.";
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = "Password is too weak. Please choose a stronger one.";
+                }
+                showMessageBox(errorMessage);
+            }
         };
 
         // Privacy Policy Screen
@@ -1635,12 +1713,10 @@
             if (userData.lastUpdateVersion < currentAppVersion) {
                 renderUpdateNotification();
                 showScreen('updateNotificationScreen');
-            } else if (userData.name) {
+            } else {
                 showScreen('mainAppScreen');
                 renderSubjects();
                 populateSubjectSelect();
-            } else {
-                showScreen('menuScreen');
             }
         };
 
@@ -1648,36 +1724,9 @@
         updateContinueButton.onclick = () => {
             userData.lastUpdateVersion = currentAppVersion; // Mark update as seen
             saveDataWrapper(); // Save update version to Firestore
-            if (userData.name) {
-                showScreen('mainAppScreen');
-                renderSubjects();
-                populateSubjectSelect();
-            } else {
-                showScreen('menuScreen');
-            }
-        };
-
-        // Menu Screen (for initial signup)
-        enterAppButton.onclick = async () => {
-            // For new signups, ensure userAnalId is set and save data
-            if (!userAnalId) {
-                userAnalId = crypto.randomUUID(); // Generate Anal ID for new signup
-            }
-            userData.name = userNameInput.value.trim();
-            userData.school = schoolNameInput.value.trim();
-            await saveDataWrapper(); // Save initial user data including Anal ID
-
-            // After initial data is set, proceed to privacy policy
-            if (!userData.privacyAccepted) {
-                showScreen('privacyPolicyScreen');
-            } else if (userData.lastUpdateVersion < currentAppVersion) {
-                renderUpdateNotification();
-                showScreen('updateNotificationScreen');
-            } else {
-                showScreen('mainAppScreen');
-                renderSubjects();
-                populateSubjectSelect();
-            }
+            showScreen('mainAppScreen');
+            renderSubjects();
+            populateSubjectSelect();
         };
 
         // Main App Screen
@@ -1717,11 +1766,6 @@
             showScreen('mainAppScreen');
         };
 
-        pairDeviceButton.onclick = () => { // Display Anal ID for pairing
-            displayedAnalId.textContent = userAnalId || "ID not available. Please sign up first.";
-            showModal(analIdDisplayModal);
-        };
-
         viewPrivacyPolicyButton.onclick = () => {
             showScreen('privacyPolicyScreen');
             privacyAcceptCheckbox.checked = userData.privacyAccepted || false;
@@ -1735,6 +1779,22 @@
 
         helpButton.onclick = () => {
             showScreen('helpScreen');
+        };
+
+        logoutButton.onclick = async () => {
+            try {
+                await signOut(window.auth);
+                showMessageBox("Logged out successfully!");
+                // Reset app state and go back to initial auth screen
+                userData = {};
+                subjects = [];
+                pastSessions = [];
+                window.userId = null;
+                showScreen('initialAuthScreen');
+            } catch (error) {
+                console.error("Logout error:", error);
+                showMessageBox("Error logging out. Please try again.");
+            }
         };
 
         backToMainFromSettingsButton.onclick = () => {
@@ -1801,110 +1861,6 @@
             }
         });
 
-        // Anal ID Input Modal
-        cancelAnalIdLoginButton.onclick = () => {
-            hideModal(analIdInputModal);
-            showScreen('initialAuthScreen'); // Go back to initial auth screen
-        };
-        submitAnalIdLoginButton.onclick = async () => {
-            const enteredAnalId = analIdLoginInput.value.trim();
-            if (!enteredAnalId) {
-                showMessageBox("Please enter an Anal ID.");
-                return;
-            }
-
-            try {
-                // Query Firestore to find the user with this Anal ID
-                const usersRef = collection(window.db, `artifacts/${APP_ID}/users`); // Use window.db
-                const q = query(usersRef, where("analId", "==", enteredAnalId));
-                const querySnapshot = await getDocs(q);
-
-                if (querySnapshot.empty) {
-                    showMessageBox("Anal ID not found. Please check and try again.");
-                    return;
-                }
-
-                // Assuming Anal ID is unique, get the first matching user
-                userToVerify = querySnapshot.docs[0].data();
-                userToVerify.docId = querySnapshot.docs[0].id; // Store Firestore document ID
-
-                hideModal(analIdInputModal);
-                showModal(verificationModal);
-                verifyNameInput.value = ''; // Clear inputs
-                verifySchoolInput.value = '';
-            } catch (error) {
-                console.error("Error searching for Anal ID:", error);
-                showMessageBox("Error logging in. Please try again.");
-            }
-        };
-
-        // Anal ID Display Modal
-        copyAnalIdButton.onclick = () => {
-            const idText = displayedAnalId.textContent;
-            if (idText) {
-                // Use a temporary textarea for copying to clipboard
-                const tempTextArea = document.createElement('textarea');
-                tempTextArea.value = idText;
-                document.body.appendChild(tempTextArea);
-                tempTextArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(tempTextArea);
-                showMessageBox("Anal ID copied to clipboard!");
-            }
-        };
-        closeAnalIdDisplayButton.onclick = () => {
-            hideModal(analIdDisplayModal);
-        };
-
-        // Verification Modal
-        cancelVerificationButton.onclick = () => {
-            hideModal(verificationModal);
-            showScreen('initialAuthScreen'); // Go back to initial auth screen
-            userToVerify = null;
-        };
-        submitVerificationButton.onclick = async () => {
-            if (!userToVerify) {
-                showMessageBox("No user data to verify. Please try logging in again.");
-                return;
-            }
-
-            const enteredName = verifyNameInput.value.trim();
-            const enteredSchool = verifySchoolInput.value.trim();
-
-            // Simple verification: name must match, school is optional but if provided, must match
-            if (enteredName === userToVerify.name &&
-                (userToVerify.school === '' || enteredSchool === userToVerify.school)) {
-                
-                // For this simulation, we'll just load the verified user's data
-                // In a real app, you'd perform Firebase re-authentication or custom token sign-in here
-                // to link the current Firebase Auth user to the target user's data.
-                
-                // Set the current userId and userAnalId to the verified user's data
-                window.userId = userToVerify.docId; 
-                window.userAnalId = userToVerify.analId; 
-
-                // Load the verified user's data
-                await loadUserDataFromFirestore();
-                hideModal(verificationModal);
-                showMessageBox("Login successful!");
-
-                // Proceed to Privacy Policy -> Update Notification -> Main App
-                if (!userData.privacyAccepted) {
-                    showScreen('privacyPolicyScreen');
-                } else if (userData.lastUpdateVersion < currentAppVersion) {
-                    renderUpdateNotification();
-                    showScreen('updateNotificationScreen');
-                } else {
-                    showScreen('mainAppScreen');
-                    renderSubjects();
-                    populateSubjectSelect();
-                }
-
-            } else {
-                showMessageBox("Verification failed. Name or School does not match.");
-            }
-        };
-
         // Help Icon Click Handler
         document.querySelectorAll('.help-icon').forEach(icon => {
             icon.onclick = (event) => {
@@ -1937,7 +1893,9 @@
         // Function to render all patch notes
         function renderPatchNotes() {
             patchNotesList.innerHTML = '';
-            patchNotesData.forEach(patch => {
+            // Display patch notes in reverse order (newest first)
+            for (let i = patchNotesData.length - 1; i >= 0; i--) {
+                const patch = patchNotesData[i];
                 const li = document.createElement('li');
                 li.innerHTML = `<strong>${patch.title} (v${patch.version}):</strong>`;
                 const ul = document.createElement('ul');
@@ -1949,7 +1907,7 @@
                 });
                 li.appendChild(ul);
                 patchNotesList.appendChild(li);
-            });
+            }
         }
 
         // Initialize the app on page load
