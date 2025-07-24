@@ -166,6 +166,8 @@
 
             <button id="startStudyingButton" class="w-full mt-auto">Start Studying</button>
             <button id="viewAllSessionsButton" class="w-full mt-4">View All Sessions</button>
+            <button id="settingsButton" class="w-full mt-4">Settings</button>
+            <p class="text-sm text-right text-gray-400 opacity-70 mt-auto">By Sathvik Harish, Strixel Studios.</p>
         </div>
 
         <!-- Study Session Screen -->
@@ -209,6 +211,18 @@
             </div>
             <button id="backToMainFromAllSessionsButton" class="w-full mt-auto">Back to Main Menu</button>
         </div>
+
+        <!-- Settings Screen -->
+        <div id="settingsScreen" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Settings</h1>
+            <p class="text-center mb-4">Update your profile information.</p>
+            <label for="settingsUserNameInput" class="text-gray-300 text-sm mb-1 block">Your Name:</label>
+            <input type="text" id="settingsUserNameInput" placeholder="Your Name" class="w-full">
+            <label for="settingsSchoolNameInput" class="text-gray-300 text-sm mb-1 block">School Name (Optional):</label>
+            <input type="text" id="settingsSchoolNameInput" placeholder="School Name (Optional)" class="w-full mb-4">
+            <button id="saveSettingsButton" class="w-full">Save Settings</button>
+            <button id="backToMainFromSettingsButton" class="w-full mt-4">Back to Main Menu</button>
+        </div>
     </div>
 
     <script>
@@ -239,27 +253,34 @@
         const addSubjectButton = document.getElementById('addSubjectButton');
         const startStudyingButton = document.getElementById('startStudyingButton');
         const viewAllSessionsButton = document.getElementById('viewAllSessionsButton');
+        const settingsButton = document.getElementById('settingsButton'); // New settings button
 
         const studySessionScreen = document.getElementById('studySessionScreen');
         const subjectSelect = document.getElementById('subjectSelect');
-        const toggleStudyPauseButton = document.getElementById('toggleStudyPauseButton'); // Renamed button
+        const toggleStudyPauseButton = document.getElementById('toggleStudyPauseButton');
         const timerDisplay = document.getElementById('timerDisplay');
         const currentSubjectDisplay = document.getElementById('currentSubjectDisplay');
         const endSessionButton = document.getElementById('endSessionButton');
         const wakeLockMessage = document.getElementById('wakeLockMessage');
-        const pauseInfoText = document.getElementById('pauseInfoText'); // New DOM element for info text
+        const pauseInfoText = document.getElementById('pauseInfoText');
 
         const overviewScreen = document.getElementById('overviewScreen');
         const sessionSummaryText = document.getElementById('sessionSummaryText');
         const overviewSubjects = document.getElementById('overviewSubjects');
-        const overviewTotalStudyTime = document.getElementById('overviewTotalStudyTime'); // New element
-        const overviewTotalIdleTime = document.getElementById('overviewTotalIdleTime'); // New element
-        const totalSessionDurationDisplay = document.getElementById('totalSessionDurationDisplay'); // Renamed element
+        const overviewTotalStudyTime = document.getElementById('overviewTotalStudyTime');
+        const overviewTotalIdleTime = document.getElementById('overviewTotalIdleTime');
+        const totalSessionDurationDisplay = document.getElementById('totalSessionDurationDisplay');
         const backToMainButton = document.getElementById('backToMainButton');
 
         const allSessionsOverviewScreen = document.getElementById('allSessionsOverviewScreen');
         const pastSessionsList = document.getElementById('pastSessionsList');
         const backToMainFromAllSessionsButton = document.getElementById('backToMainFromAllSessionsButton');
+
+        const settingsScreen = document.getElementById('settingsScreen'); // New settings screen
+        const settingsUserNameInput = document.getElementById('settingsUserNameInput'); // New settings input
+        const settingsSchoolNameInput = document.getElementById('settingsSchoolNameInput'); // New settings input
+        const saveSettingsButton = document.getElementById('saveSettingsButton'); // New settings save button
+        const backToMainFromSettingsButton = document.getElementById('backToMainFromSettingsButton'); // New settings back button
 
         // Function to switch screens
         function showScreen(screenId) {
@@ -272,8 +293,8 @@
 
         // Function to save data to local storage
         function saveData() {
-            userData.name = userNameInput.value.trim();
-            userData.school = schoolNameInput.value.trim();
+            userData.name = userNameInput.value.trim(); // Save from initial menu
+            userData.school = schoolNameInput.value.trim(); // Save from initial menu
             localStorage.setItem('analStudyData', JSON.stringify(userData));
             localStorage.setItem('analStudySubjects', JSON.stringify(subjects));
             localStorage.setItem('analStudyPastSessions', JSON.stringify(pastSessions)); // Save past sessions
@@ -289,6 +310,8 @@
                 userData = JSON.parse(storedUserData);
                 userNameInput.value = userData.name || '';
                 schoolNameInput.value = userData.school || '';
+                settingsUserNameInput.value = userData.name || ''; // Populate settings input
+                settingsSchoolNameInput.value = userData.school || ''; // Populate settings input
             }
             if (storedSubjects) {
                 subjects = JSON.parse(storedSubjects);
@@ -553,12 +576,6 @@
             overviewTotalStudyTime.textContent = `Active Study Time: ${formatTime(totalSessionStudyTime)}`;
             overviewTotalIdleTime.textContent = `Idle/Paused Time: ${formatTime(totalSessionPauseTime)}`;
             totalSessionDurationDisplay.textContent = formatTime(totalSessionStudyTime + totalSessionPauseTime);
-
-            // Removed the lines that were causing the error, as these elements no longer exist in the HTML
-            // document.getElementById('maxBreaksInfo').style.display = 'none';
-            // document.getElementById('maxBreakDurationInfo').style.display = 'none';
-            // document.getElementById('overviewBreaksTaken').style.display = 'none';
-            // document.getElementById('overviewTotalBreakTime').style.display = 'none';
         }
 
         // New function to render all past sessions
@@ -618,6 +635,23 @@
         viewAllSessionsButton.onclick = () => {
             renderAllSessionsOverview();
             showScreen('allSessionsOverviewScreen');
+        };
+
+        settingsButton.onclick = () => { // Event listener for new settings button
+            settingsUserNameInput.value = userData.name || ''; // Populate with current data
+            settingsSchoolNameInput.value = userData.school || ''; // Populate with current data
+            showScreen('settingsScreen');
+        };
+
+        saveSettingsButton.onclick = () => { // Event listener for save settings button
+            userData.name = settingsUserNameInput.value.trim();
+            userData.school = settingsSchoolNameInput.value.trim();
+            saveData();
+            showScreen('mainAppScreen'); // Go back to main screen after saving
+        };
+
+        backToMainFromSettingsButton.onclick = () => { // Event listener for back from settings
+            showScreen('mainAppScreen');
         };
 
         toggleStudyPauseButton.onclick = toggleStudyPause; // Main button for start/pause/resume
