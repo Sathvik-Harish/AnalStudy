@@ -6,6 +6,8 @@
     <title>AnalStudy</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -83,6 +85,12 @@
         .delete-button:hover {
             background-color: #c53030;
         }
+        .edit-button { /* New style for edit button */
+            background-color: #48bb78; /* Green */
+        }
+        .edit-button:hover {
+            background-color: #38a169;
+        }
         .end-button {
             background-color: #e53e3e; /* Red for end session */
         }
@@ -140,6 +148,37 @@
         }
         .idle-bar {
             background-color: #6b7280; /* Grey for idle time */
+        }
+        .session-card { /* Style for individual session cards in All Sessions Overview */
+            background-color: #4a5568;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .session-card h3 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .session-card h3 span {
+            flex-grow: 1;
+        }
+        .session-card button {
+            margin-left: 0.5rem;
+            margin-bottom: 0;
+            padding: 0.3rem 0.6rem;
+            font-size: 0.75rem;
+            border-radius: 0.5rem;
+        }
+        .chart-container {
+            position: relative;
+            height: 250px; /* Fixed height for charts */
+            width: 100%;
+            margin-bottom: 1.5rem;
+            background-color: #3d4858;
+            border-radius: 0.75rem;
+            padding: 1rem;
         }
     </style>
 </head>
@@ -209,7 +248,26 @@
             <div id="pastSessionsList" class="flex flex-col gap-4 mb-6">
                 <!-- Past sessions will be loaded here -->
             </div>
-            <button id="backToMainFromAllSessionsButton" class="w-full mt-auto">Back to Main Menu</button>
+            <button id="viewTotalOverviewButton" class="w-full mt-auto">View Total Overview</button>
+            <button id="backToMainFromAllSessionsButton" class="w-full mt-4">Back to Main Menu</button>
+        </div>
+
+        <!-- Total Overview Screen -->
+        <div id="totalOverviewScreen" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Total Study Analytics</h1>
+            <p id="totalOverviewSummary" class="text-center text-lg text-gray-300 mb-6"></p>
+
+            <h2 class="text-xl font-semibold mb-2 text-blue-300">Study Time Trend (per session)</h2>
+            <div class="chart-container">
+                <canvas id="studyTimeTrendChart"></canvas>
+            </div>
+
+            <h2 class="text-xl font-semibold mb-2 text-blue-300">Top Subjects Studied Overall</h2>
+            <div class="chart-container">
+                <canvas id="subjectsOverallChart"></canvas>
+            </div>
+
+            <button id="backToAllSessionsButton" class="w-full mt-auto">Back to All Sessions</button>
         </div>
 
         <!-- Settings Screen -->
@@ -222,6 +280,18 @@
             <input type="text" id="settingsSchoolNameInput" placeholder="School Name (Optional)" class="w-full mb-4">
             <button id="saveSettingsButton" class="w-full">Save Settings</button>
             <button id="backToMainFromSettingsButton" class="w-full mt-4">Back to Main Menu</button>
+        </div>
+
+        <!-- Modal for Renaming Session -->
+        <div id="renameModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4" style="display: none;">
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg w-full max-w-xs">
+                <h2 class="text-xl font-bold text-blue-400 mb-4">Rename Session</h2>
+                <input type="text" id="newSessionNameInput" placeholder="Enter new session name" class="w-full mb-4">
+                <div class="flex justify-end gap-2">
+                    <button id="cancelRenameButton" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">Cancel</button>
+                    <button id="confirmRenameButton" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">Rename</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -240,6 +310,8 @@
         let isStudying = false; // True if actively studying, false if paused or session not started
         let wakeLock = null;
         let pastSessions = []; // Array to store data for all past sessions
+        let currentChart1 = null; // To store Chart.js instance for trend chart
+        let currentChart2 = null; // To store Chart.js instance for subjects chart
 
         // DOM Elements
         const menuScreen = document.getElementById('menuScreen');
@@ -253,7 +325,7 @@
         const addSubjectButton = document.getElementById('addSubjectButton');
         const startStudyingButton = document.getElementById('startStudyingButton');
         const viewAllSessionsButton = document.getElementById('viewAllSessionsButton');
-        const settingsButton = document.getElementById('settingsButton'); // New settings button
+        const settingsButton = document.getElementById('settingsButton');
 
         const studySessionScreen = document.getElementById('studySessionScreen');
         const subjectSelect = document.getElementById('subjectSelect');
@@ -274,13 +346,26 @@
 
         const allSessionsOverviewScreen = document.getElementById('allSessionsOverviewScreen');
         const pastSessionsList = document.getElementById('pastSessionsList');
+        const viewTotalOverviewButton = document.getElementById('viewTotalOverviewButton'); // New button
         const backToMainFromAllSessionsButton = document.getElementById('backToMainFromAllSessionsButton');
 
-        const settingsScreen = document.getElementById('settingsScreen'); // New settings screen
-        const settingsUserNameInput = document.getElementById('settingsUserNameInput'); // New settings input
-        const settingsSchoolNameInput = document.getElementById('settingsSchoolNameInput'); // New settings input
-        const saveSettingsButton = document.getElementById('saveSettingsButton'); // New settings save button
-        const backToMainFromSettingsButton = document.getElementById('backToMainFromSettingsButton'); // New settings back button
+        const totalOverviewScreen = document.getElementById('totalOverviewScreen'); // New screen
+        const totalOverviewSummary = document.getElementById('totalOverviewSummary'); // New element
+        const studyTimeTrendChartCanvas = document.getElementById('studyTimeTrendChart'); // Chart canvas
+        const subjectsOverallChartCanvas = document.getElementById('subjectsOverallChart'); // Chart canvas
+        const backToAllSessionsButton = document.getElementById('backToAllSessionsButton'); // New button
+
+        const settingsScreen = document.getElementById('settingsScreen');
+        const settingsUserNameInput = document.getElementById('settingsUserNameInput');
+        const settingsSchoolNameInput = document.getElementById('settingsSchoolNameInput');
+        const saveSettingsButton = document.getElementById('saveSettingsButton');
+        const backToMainFromSettingsButton = document.getElementById('backToMainFromSettingsButton');
+
+        const renameModal = document.getElementById('renameModal'); // Rename modal
+        const newSessionNameInput = document.getElementById('newSessionNameInput'); // Rename input
+        const cancelRenameButton = document.getElementById('cancelRenameButton'); // Rename cancel button
+        const confirmRenameButton = document.getElementById('confirmRenameButton'); // Rename confirm button
+        let sessionToRenameIndex = -1; // Index of the session being renamed
 
         // Function to switch screens
         function showScreen(screenId) {
@@ -293,11 +378,11 @@
 
         // Function to save data to local storage
         function saveData() {
-            userData.name = userNameInput.value.trim(); // Save from initial menu
-            userData.school = schoolNameInput.value.trim(); // Save from initial menu
+            userData.name = userNameInput.value.trim();
+            userData.school = schoolNameInput.value.trim();
             localStorage.setItem('analStudyData', JSON.stringify(userData));
             localStorage.setItem('analStudySubjects', JSON.stringify(subjects));
-            localStorage.setItem('analStudyPastSessions', JSON.stringify(pastSessions)); // Save past sessions
+            localStorage.setItem('analStudyPastSessions', JSON.stringify(pastSessions));
         }
 
         // Function to load data from local storage
@@ -310,13 +395,13 @@
                 userData = JSON.parse(storedUserData);
                 userNameInput.value = userData.name || '';
                 schoolNameInput.value = userData.school || '';
-                settingsUserNameInput.value = userData.name || ''; // Populate settings input
-                settingsSchoolNameInput.value = userData.school || ''; // Populate settings input
+                settingsUserNameInput.value = userData.name || '';
+                settingsSchoolNameInput.value = userData.school || '';
             }
             if (storedSubjects) {
                 subjects = JSON.parse(storedSubjects);
             } else {
-                subjects = ['Maths', 'Science', 'History']; // Default subjects
+                subjects = ['Maths', 'Science', 'History'];
             }
             if (storedPastSessions) {
                 pastSessions = JSON.parse(storedPastSessions);
@@ -336,7 +421,6 @@
                 subjectsList.appendChild(subjectItem);
             });
 
-            // Add event listeners for remove buttons
             document.querySelectorAll('.delete-button').forEach(button => {
                 button.onclick = (event) => {
                     const subjectToRemove = event.target.dataset.subject;
@@ -373,7 +457,7 @@
                 option.value = '';
                 option.textContent = 'No subjects available. Add some!';
                 subjectSelect.appendChild(option);
-                toggleStudyPauseButton.disabled = true; // Disable if no subjects
+                toggleStudyPauseButton.disabled = true;
                 return;
             }
             toggleStudyPauseButton.disabled = false;
@@ -498,6 +582,8 @@
 
             // Prepare session data for saving
             const sessionData = {
+                id: Date.now(), // Unique ID for the session
+                name: `Session on ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`, // Default name
                 date: new Date().toISOString(),
                 totalStudyDuration: totalSessionStudyTime,
                 totalPauseDuration: totalSessionPauseTime,
@@ -578,7 +664,36 @@
             totalSessionDurationDisplay.textContent = formatTime(totalSessionStudyTime + totalSessionPauseTime);
         }
 
-        // New function to render all past sessions
+        // Function to open the rename modal
+        function openRenameModal(sessionId) {
+            sessionToRenameIndex = pastSessions.findIndex(session => session.id === sessionId);
+            if (sessionToRenameIndex !== -1) {
+                newSessionNameInput.value = pastSessions[sessionToRenameIndex].name;
+                renameModal.style.display = 'flex';
+            }
+        }
+
+        // Function to rename a session
+        function renameSession() {
+            if (sessionToRenameIndex !== -1) {
+                const newName = newSessionNameInput.value.trim();
+                if (newName) {
+                    pastSessions[sessionToRenameIndex].name = newName;
+                    saveData();
+                    renderAllSessionsOverview(); // Re-render the list to show the new name
+                    renameModal.style.display = 'none';
+                    sessionToRenameIndex = -1; // Reset
+                } else {
+                    const messageBox = document.createElement('div');
+                    messageBox.className = 'message-box';
+                    messageBox.textContent = 'Session name cannot be empty.';
+                    renameModal.querySelector('div').insertBefore(messageBox, newSessionNameInput.nextSibling);
+                    setTimeout(() => messageBox.remove(), 3000);
+                }
+            }
+        }
+
+        // Render all past sessions overview
         function renderAllSessionsOverview() {
             pastSessionsList.innerHTML = '';
             if (pastSessions.length === 0) {
@@ -588,7 +703,7 @@
 
             const sortedSessions = [...pastSessions].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            sortedSessions.forEach((session, index) => {
+            sortedSessions.forEach((session) => {
                 const sessionDate = new Date(session.date).toLocaleString();
                 const subjectsSummary = Object.keys(session.subjectsStudied).join(', ') || 'None';
                 const totalStudyFormatted = formatTime(session.totalStudyDuration);
@@ -596,15 +711,189 @@
                 const totalSessionOverallDuration = formatTime(session.totalStudyDuration + session.totalPauseDuration);
 
                 const sessionItem = document.createElement('div');
-                sessionItem.className = 'bg-gray-700 p-4 rounded-xl shadow-md';
+                sessionItem.className = 'session-card';
                 sessionItem.innerHTML = `
-                    <h3 class="text-lg font-semibold text-blue-300 mb-2">Session on ${sessionDate}</h3>
+                    <h3>
+                        <span class="font-semibold text-blue-300">${session.name}</span>
+                        <button class="edit-button" data-session-id="${session.id}">Edit Name</button>
+                    </h3>
+                    <p class="text-sm text-gray-300 mb-1">Date: ${sessionDate}</p>
                     <p class="text-sm text-gray-300 mb-1">Studied: ${subjectsSummary}</p>
                     <p class="text-sm text-gray-300 mb-1">Active Study Time: <span class="font-medium">${totalStudyFormatted}</span></p>
                     <p class="text-sm text-gray-300 mb-1">Idle/Paused Time: <span class="font-medium">${totalPauseFormatted}</span></p>
                     <p class="text-sm text-gray-300">Total Session Duration: <span class="font-medium">${totalSessionOverallDuration}</span></p>
                 `;
                 pastSessionsList.appendChild(sessionItem);
+            });
+
+            // Add event listeners for edit buttons
+            document.querySelectorAll('.edit-button').forEach(button => {
+                button.onclick = (event) => {
+                    const sessionId = parseInt(event.target.dataset.sessionId);
+                    openRenameModal(sessionId);
+                };
+            });
+        }
+
+        // Function to render total overview analytics
+        function renderTotalOverview() {
+            let overallTotalStudy = 0;
+            let overallTotalPause = 0;
+            let overallSubjectsData = {}; // {subject: totalDuration}
+            const sessionDates = [];
+            const sessionStudyDurations = [];
+
+            pastSessions.forEach(session => {
+                overallTotalStudy += session.totalStudyDuration;
+                overallTotalPause += session.totalPauseDuration;
+                sessionDates.push(new Date(session.date).toLocaleDateString());
+                sessionStudyDurations.push(session.totalStudyDuration / 60); // Convert to minutes for chart
+
+                for (const subject in session.subjectsStudied) {
+                    if (overallSubjectsData[subject]) {
+                        overallSubjectsData[subject] += session.subjectsStudied[subject];
+                    } else {
+                        overallSubjectsData[subject] = session.subjectsStudied[subject];
+                    }
+                }
+            });
+
+            const totalSessionsCount = pastSessions.length;
+            const avgStudyPerSession = totalSessionsCount > 0 ? overallTotalStudy / totalSessionsCount : 0;
+
+            totalOverviewSummary.textContent = `You've completed ${totalSessionsCount} sessions, with a total active study time of ${formatTime(overallTotalStudy)} and total idle time of ${formatTime(overallTotalPause)}. Your average active study time per session is ${formatTime(avgStudyPerSession)}.`;
+
+            // Destroy existing charts if they exist
+            if (currentChart1) {
+                currentChart1.destroy();
+            }
+            if (currentChart2) {
+                currentChart2.destroy();
+            }
+
+            // Chart 1: Study Time Trend per Session
+            const ctx1 = studyTimeTrendChartCanvas.getContext('2d');
+            currentChart1 = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: sessionDates,
+                    datasets: [{
+                        label: 'Active Study Time (minutes)',
+                        data: sessionStudyDurations.map(d => Math.round(d)), // Round for cleaner labels
+                        borderColor: '#63b3ed',
+                        backgroundColor: 'rgba(99, 179, 237, 0.2)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Minutes',
+                                color: '#e2e8f0'
+                            },
+                            ticks: {
+                                color: '#e2e8f0'
+                            },
+                            grid: {
+                                color: '#4a5568'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Session Date',
+                                color: '#e2e8f0'
+                            },
+                            ticks: {
+                                color: '#e2e8f0'
+                            },
+                            grid: {
+                                color: '#4a5568'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e2e8f0'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Chart 2: Top Subjects Studied Overall
+            const subjectLabels = Object.keys(overallSubjectsData);
+            const subjectDurations = Object.values(overallSubjectsData).map(d => Math.round(d / 60)); // Convert to minutes
+
+            const ctx2 = subjectsOverallChartCanvas.getContext('2d');
+            currentChart2 = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: subjectLabels,
+                    datasets: [{
+                        label: 'Total Time Studied (minutes)',
+                        data: subjectDurations,
+                        backgroundColor: [
+                            'rgba(99, 179, 237, 0.7)', // Blue
+                            'rgba(72, 187, 120, 0.7)', // Green
+                            'rgba(246, 173, 85, 0.7)',  // Orange
+                            'rgba(237, 100, 166, 0.7)', // Pink
+                            'rgba(159, 122, 233, 0.7)', // Purple
+                            'rgba(56, 178, 172, 0.7)'  // Teal
+                        ],
+                        borderColor: [
+                            '#63b3ed',
+                            '#48bb78',
+                            '#f6ad55',
+                            '#ed64a6',
+                            '#9f7aea',
+                            '#38b2ac'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Minutes',
+                                color: '#e2e8f0'
+                            },
+                            ticks: {
+                                color: '#e2e8f0'
+                            },
+                            grid: {
+                                color: '#4a5568'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#e2e8f0'
+                            },
+                            grid: {
+                                color: '#4a5568'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e2e8f0'
+                            }
+                        }
+                    }
+                }
             });
         }
 
@@ -628,8 +917,8 @@
             populateSubjectSelect();
             timerDisplay.textContent = '00:00:00';
             currentSubjectDisplay.textContent = '';
-            toggleStudyPauseButton.textContent = 'Start Timer'; // Ensure button text is "Start Timer"
-            subjectSelect.disabled = false; // Ensure subject select is enabled when starting a new session
+            toggleStudyPauseButton.textContent = 'Start Timer';
+            subjectSelect.disabled = false;
         };
 
         viewAllSessionsButton.onclick = () => {
@@ -637,24 +926,24 @@
             showScreen('allSessionsOverviewScreen');
         };
 
-        settingsButton.onclick = () => { // Event listener for new settings button
-            settingsUserNameInput.value = userData.name || ''; // Populate with current data
-            settingsSchoolNameInput.value = userData.school || ''; // Populate with current data
+        settingsButton.onclick = () => {
+            settingsUserNameInput.value = userData.name || '';
+            settingsSchoolNameInput.value = userData.school || '';
             showScreen('settingsScreen');
         };
 
-        saveSettingsButton.onclick = () => { // Event listener for save settings button
+        saveSettingsButton.onclick = () => {
             userData.name = settingsUserNameInput.value.trim();
             userData.school = settingsSchoolNameInput.value.trim();
             saveData();
-            showScreen('mainAppScreen'); // Go back to main screen after saving
-        };
-
-        backToMainFromSettingsButton.onclick = () => { // Event listener for back from settings
             showScreen('mainAppScreen');
         };
 
-        toggleStudyPauseButton.onclick = toggleStudyPause; // Main button for start/pause/resume
+        backToMainFromSettingsButton.onclick = () => {
+            showScreen('mainAppScreen');
+        };
+
+        toggleStudyPauseButton.onclick = toggleStudyPause;
         endSessionButton.onclick = endSession;
         backToMainButton.onclick = () => {
             showScreen('mainAppScreen');
@@ -664,6 +953,31 @@
         backToMainFromAllSessionsButton.onclick = () => {
             showScreen('mainAppScreen');
         };
+
+        // New event listener for View Total Overview button
+        viewTotalOverviewButton.onclick = () => {
+            renderTotalOverview();
+            showScreen('totalOverviewScreen');
+        };
+
+        // New event listener for Back to All Sessions button
+        backToAllSessionsButton.onclick = () => {
+            showScreen('allSessionsOverviewScreen');
+            renderAllSessionsOverview(); // Re-render to ensure latest names are shown
+        };
+
+        // Rename modal event listeners
+        cancelRenameButton.onclick = () => {
+            renameModal.style.display = 'none';
+            sessionToRenameIndex = -1;
+        };
+        confirmRenameButton.onclick = renameSession;
+        newSessionNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                renameSession();
+            }
+        });
+
 
         // Initialize the app on page load
         window.onload = () => {
