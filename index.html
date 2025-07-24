@@ -83,18 +83,6 @@
         .delete-button:hover {
             background-color: #c53030;
         }
-        .break-button {
-            background-color: #f6ad55; /* Orange for break */
-        }
-        .break-button:hover {
-            background-color: #ed8936;
-        }
-        .stop-button {
-            background-color: #ecc94b; /* Yellow for stop */
-        }
-        .stop-button:hover {
-            background-color: #d69e2e;
-        }
         .end-button {
             background-color: #e53e3e; /* Red for end session */
         }
@@ -150,6 +138,9 @@
             border-radius: 0.5rem;
             transition: width 0.5s ease-out;
         }
+        .idle-bar {
+            background-color: #6b7280; /* Grey for idle time */
+        }
     </style>
 </head>
 <body>
@@ -173,26 +164,20 @@
             <input type="text" id="newSubjectInput" placeholder="Add New Subject" class="w-full">
             <button id="addSubjectButton" class="w-full mb-4">Add Subject</button>
 
-            <h2 class="text-2xl font-bold text-center mb-4 text-blue-400 mt-6">Break Settings</h2>
-            <input type="number" id="maxBreaksInput" placeholder="Max Breaks (0 for unlimited)" class="w-full">
-            <input type="number" id="maxBreakDurationInput" placeholder="Max Break Duration (seconds, 0 for unlimited)" class="w-full mb-4">
-
             <button id="startStudyingButton" class="w-full mt-auto">Start Studying</button>
+            <button id="viewAllSessionsButton" class="w-full mt-4">View All Sessions</button>
         </div>
 
         <!-- Study Session Screen -->
         <div id="studySessionScreen" class="screen">
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Study Session</h1>
             <select id="subjectSelect" class="w-full mb-4"></select>
-            <button id="startTimerButton" class="w-full">Start Timer</button>
+            <p id="pauseInfoText" class="text-sm text-center text-gray-400 mb-4">Pausing counts as idle time and when you do start the timer again it will reset to 0:00</p>
+            <button id="toggleStudyPauseButton" class="w-full">Start Timer</button>
             <div id="timerDisplay" class="timer-display">00:00:00</div>
             <div id="currentSubjectDisplay" class="text-center text-xl text-gray-300 mb-4"></div>
 
             <div class="flex flex-col gap-4 mt-auto">
-                <button id="takeBreakButton" class="w-full break-button">Take a Break</button>
-                <button id="stopBreakButton" class="w-full break-button" style="display: none;">Stop Break</button>
-                <button id="forceExtraBreakButton" class="w-full break-button" style="display: none;">Force Use Extra Break</button>
-                <button id="stopStudyingButton" class="w-full stop-button">Stop Studying</button>
                 <button id="endSessionButton" class="w-full end-button">End Session</button>
             </div>
             <div id="wakeLockMessage" class="message-box mt-4" style="display: none;">
@@ -200,7 +185,7 @@
             </div>
         </div>
 
-        <!-- Overview Screen -->
+        <!-- Current Session Overview Screen -->
         <div id="overviewScreen" class="screen">
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Session Overview</h1>
             <p id="sessionSummaryText" class="text-center text-lg text-gray-300 mb-6"></p>
@@ -208,15 +193,21 @@
             <div id="overviewSubjects" class="flex flex-col gap-2 mb-6">
                 <!-- Overview subjects and times will be loaded here -->
             </div>
-            <p class="text-xl font-semibold mb-2 text-center">Breaks Taken:</p>
-            <p id="overviewBreaksTaken" class="text-center text-lg text-gray-300 mb-4"></p>
-            <p class="text-xl font-semibold mb-2 text-center">Total Break Time:</p>
-            <p id="overviewTotalBreakTime" class="text-center text-lg text-gray-300 mb-6"></p>
-            <p id="maxBreaksInfo" class="text-center text-sm text-gray-400 mb-1" style="display: none;"></p>
-            <p id="maxBreakDurationInfo" class="text-center text-sm text-gray-400 mb-4" style="display: none;"></p>
-            <p class="text-xl font-semibold mb-4 text-center">Total Session Time:</p>
-            <div id="totalSessionTime" class="timer-display text-2xl mb-6">00:00:00</div>
+            <p class="text-xl font-semibold mb-2 text-center">Session Breakdown:</p>
+            <p id="overviewTotalStudyTime" class="text-center text-lg text-blue-300 mb-1"></p>
+            <p id="overviewTotalIdleTime" class="text-center text-lg text-gray-400 mb-4"></p>
+            <p class="text-xl font-semibold mb-4 text-center">Total Session Duration:</p>
+            <div id="totalSessionDurationDisplay" class="timer-display text-2xl mb-6">00:00:00</div>
             <button id="backToMainButton" class="w-full mt-auto">Back to Main Menu</button>
+        </div>
+
+        <!-- All Sessions Overview Screen -->
+        <div id="allSessionsOverviewScreen" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">All Past Sessions</h1>
+            <div id="pastSessionsList" class="flex flex-col gap-4 mb-6">
+                <!-- Past sessions will be loaded here -->
+            </div>
+            <button id="backToMainFromAllSessionsButton" class="w-full mt-auto">Back to Main Menu</button>
         </div>
     </div>
 
@@ -225,21 +216,16 @@
         let userData = {};
         let currentScreen = 'menuScreen';
         let subjects = [];
-        let studyTimer = null;
-        let breakTimer = null;
-        let studyStartTime = 0;
-        let breakStartTime = 0;
-        let totalStudyDuration = 0; // Total time spent studying in current session
-        let sessionSubjectsDurations = {}; // {subjectName: durationInSeconds}
+        let sessionTimerInterval = null; // Main interval for study timer
+        let currentSubjectStartTime = 0; // Timestamp when current study segment began
+        let currentPauseStartTime = 0; // Timestamp when current pause segment began
+        let totalSessionStudyTime = 0; // Cumulative time actively studying in current session
+        let totalSessionPauseTime = 0; // Cumulative time paused/idle in current session
+        let sessionSubjectsDurations = {}; // {subjectName: durationInSeconds} for active study
         let currentSubject = '';
-        let isStudying = false;
-        let isBreak = false;
+        let isStudying = false; // True if actively studying, false if paused or session not started
         let wakeLock = null;
-        let breakCount = 0; // Counter for breaks taken
-        let totalBreakDuration = 0; // Total time spent on breaks
-        let maxBreaksAllowed = 0; // Max number of breaks allowed (0 for unlimited)
-        let maxBreakDurationSeconds = 0; // Max duration for each break (0 for unlimited)
-        let extraBreaksUsed = 0; // Counter for breaks taken beyond the limit
+        let pastSessions = []; // Array to store data for all past sessions
 
         // DOM Elements
         const menuScreen = document.getElementById('menuScreen');
@@ -252,30 +238,28 @@
         const newSubjectInput = document.getElementById('newSubjectInput');
         const addSubjectButton = document.getElementById('addSubjectButton');
         const startStudyingButton = document.getElementById('startStudyingButton');
-        const maxBreaksInput = document.getElementById('maxBreaksInput');
-        const maxBreakDurationInput = document.getElementById('maxBreakDurationInput');
+        const viewAllSessionsButton = document.getElementById('viewAllSessionsButton');
 
         const studySessionScreen = document.getElementById('studySessionScreen');
         const subjectSelect = document.getElementById('subjectSelect');
-        const startTimerButton = document.getElementById('startTimerButton');
+        const toggleStudyPauseButton = document.getElementById('toggleStudyPauseButton'); // Renamed button
         const timerDisplay = document.getElementById('timerDisplay');
         const currentSubjectDisplay = document.getElementById('currentSubjectDisplay');
-        const takeBreakButton = document.getElementById('takeBreakButton');
-        const stopBreakButton = document.getElementById('stopBreakButton');
-        const forceExtraBreakButton = document.getElementById('forceExtraBreakButton'); // New button
-        const stopStudyingButton = document.getElementById('stopStudyingButton');
         const endSessionButton = document.getElementById('endSessionButton');
         const wakeLockMessage = document.getElementById('wakeLockMessage');
+        const pauseInfoText = document.getElementById('pauseInfoText'); // New DOM element for info text
 
         const overviewScreen = document.getElementById('overviewScreen');
         const sessionSummaryText = document.getElementById('sessionSummaryText');
         const overviewSubjects = document.getElementById('overviewSubjects');
-        const overviewBreaksTaken = document.getElementById('overviewBreaksTaken');
-        const overviewTotalBreakTime = document.getElementById('overviewTotalBreakTime');
-        const maxBreaksInfo = document.getElementById('maxBreaksInfo'); // New info element
-        const maxBreakDurationInfo = document.getElementById('maxBreakDurationInfo'); // New info element
-        const totalSessionTime = document.getElementById('totalSessionTime');
+        const overviewTotalStudyTime = document.getElementById('overviewTotalStudyTime'); // New element
+        const overviewTotalIdleTime = document.getElementById('overviewTotalIdleTime'); // New element
+        const totalSessionDurationDisplay = document.getElementById('totalSessionDurationDisplay'); // Renamed element
         const backToMainButton = document.getElementById('backToMainButton');
+
+        const allSessionsOverviewScreen = document.getElementById('allSessionsOverviewScreen');
+        const pastSessionsList = document.getElementById('pastSessionsList');
+        const backToMainFromAllSessionsButton = document.getElementById('backToMainFromAllSessionsButton');
 
         // Function to switch screens
         function showScreen(screenId) {
@@ -290,30 +274,29 @@
         function saveData() {
             userData.name = userNameInput.value.trim();
             userData.school = schoolNameInput.value.trim();
-            userData.maxBreaks = maxBreaksInput.value;
-            userData.maxBreakDuration = maxBreakDurationInput.value;
             localStorage.setItem('analStudyData', JSON.stringify(userData));
             localStorage.setItem('analStudySubjects', JSON.stringify(subjects));
+            localStorage.setItem('analStudyPastSessions', JSON.stringify(pastSessions)); // Save past sessions
         }
 
         // Function to load data from local storage
         function loadData() {
             const storedUserData = localStorage.getItem('analStudyData');
             const storedSubjects = localStorage.getItem('analStudySubjects');
+            const storedPastSessions = localStorage.getItem('analStudyPastSessions');
 
             if (storedUserData) {
                 userData = JSON.parse(storedUserData);
                 userNameInput.value = userData.name || '';
                 schoolNameInput.value = userData.school || '';
-                maxBreaksInput.value = userData.maxBreaks || '';
-                maxBreakDurationInput.value = userData.maxBreakDuration || '';
-                maxBreaksAllowed = parseInt(userData.maxBreaks) || 0;
-                maxBreakDurationSeconds = parseInt(userData.maxBreakDuration) || 0;
             }
             if (storedSubjects) {
                 subjects = JSON.parse(storedSubjects);
             } else {
                 subjects = ['Maths', 'Science', 'History']; // Default subjects
+            }
+            if (storedPastSessions) {
+                pastSessions = JSON.parse(storedPastSessions);
             }
         }
 
@@ -367,10 +350,10 @@
                 option.value = '';
                 option.textContent = 'No subjects available. Add some!';
                 subjectSelect.appendChild(option);
-                startTimerButton.disabled = true;
+                toggleStudyPauseButton.disabled = true; // Disable if no subjects
                 return;
             }
-            startTimerButton.disabled = false;
+            toggleStudyPauseButton.disabled = false;
             subjects.forEach(subject => {
                 const option = document.createElement('option');
                 option.value = subject;
@@ -397,7 +380,6 @@
                         wakeLockMessage.style.display = 'none';
                     });
                 } catch (err) {
-                    // The user has denied the request or the Wake Lock was not granted.
                     wakeLockMessage.textContent = 'Screen might turn off during study. Grant permission for screen stay-on.';
                     wakeLockMessage.style.display = 'block';
                 }
@@ -416,192 +398,110 @@
             }
         }
 
-        // Start study timer
-        function startStudyTimer() {
-            if (isStudying) return; // Already studying
-
-            currentSubject = subjectSelect.value;
-            if (!currentSubject) {
-                // Using a custom message box instead of alert()
-                const messageBox = document.createElement('div');
-                messageBox.className = 'message-box';
-                messageBox.textContent = 'Please select a subject to start studying.';
-                studySessionScreen.insertBefore(messageBox, subjectSelect.nextSibling);
-                setTimeout(() => messageBox.remove(), 3000); // Remove message after 3 seconds
-                return;
-            }
-
-            isStudying = true;
-            isBreak = false;
-            studyStartTime = Date.now();
-            currentSubjectDisplay.textContent = `Studying: ${currentSubject}`;
-
-            // Initialize subject duration if not present
-            if (!sessionSubjectsDurations[currentSubject]) {
-                sessionSubjectsDurations[currentSubject] = 0;
-            }
-
-            // Hide start button, show break/stop buttons
-            startTimerButton.style.display = 'none';
-            takeBreakButton.style.display = 'block';
-            stopStudyingButton.style.display = 'block';
-            endSessionButton.style.display = 'block';
-            subjectSelect.disabled = true; // Disable subject selection while studying
-
-            requestWakeLock();
-
-            studyTimer = setInterval(() => {
-                totalStudyDuration += 1; // Increment total session duration
-                sessionSubjectsDurations[currentSubject] += 1; // Increment current subject duration
-                const elapsed = Math.floor((Date.now() - studyStartTime) / 1000);
-                timerDisplay.textContent = formatTime(elapsed);
-            }, 1000);
+        // Function to update the timer display and accumulate study time
+        function updateTimerDisplay() {
+            const elapsed = Math.floor((Date.now() - currentSubjectStartTime) / 1000);
+            timerDisplay.textContent = formatTime(elapsed);
         }
 
-        // Pause study timer and start break timer
-        function takeBreak() {
-            if (!isStudying || isBreak) return;
+        // Toggle Study/Pause functionality
+        function toggleStudyPause() {
+            if (!isStudying) { // Currently paused or fresh start, so start/resume study
+                currentSubject = subjectSelect.value;
+                if (!currentSubject) {
+                    const messageBox = document.createElement('div');
+                    messageBox.className = 'message-box';
+                    messageBox.textContent = 'Please select a subject to start studying.';
+                    studySessionScreen.insertBefore(messageBox, subjectSelect.nextSibling);
+                    setTimeout(() => messageBox.remove(), 3000);
+                    return;
+                }
 
-            // Check break limit
-            if (maxBreaksAllowed > 0 && breakCount >= maxBreaksAllowed) {
-                // Display message and show force extra break button
-                const messageBox = document.createElement('div');
-                messageBox.className = 'message-box';
-                messageBox.textContent = `You have reached your break limit (${maxBreaksAllowed} breaks). Click 'Force Use Extra Break' to continue.`;
-                studySessionScreen.insertBefore(messageBox, takeBreakButton.nextSibling);
-                setTimeout(() => messageBox.remove(), 5000);
+                // If resuming from a pause, calculate and add to totalSessionPauseTime
+                if (currentPauseStartTime !== 0) {
+                    totalSessionPauseTime += Math.floor((Date.now() - currentPauseStartTime) / 1000);
+                    currentPauseStartTime = 0; // Reset pause start time
+                }
 
-                takeBreakButton.style.display = 'none';
-                forceExtraBreakButton.style.display = 'block';
-                return; // Prevent taking break with regular button
+                isStudying = true;
+                currentSubjectStartTime = Date.now(); // Start new study segment
+                
+                // Initialize subject duration if not present
+                if (!sessionSubjectsDurations[currentSubject]) {
+                    sessionSubjectsDurations[currentSubject] = 0;
+                }
+
+                clearInterval(sessionTimerInterval); // Clear any existing interval
+                sessionTimerInterval = setInterval(() => {
+                    sessionSubjectsDurations[currentSubject] += 1; // Accumulate per subject
+                    updateTimerDisplay(); // Update current segment timer
+                }, 1000);
+
+                requestWakeLock();
+                toggleStudyPauseButton.textContent = "Pause Study";
+                subjectSelect.disabled = true; // Disable subject selection while studying
+                currentSubjectDisplay.textContent = `Studying: ${currentSubject}`;
+
+            } else { // Currently studying, user wants to pause
+                isStudying = false;
+                clearInterval(sessionTimerInterval); // Stop study timer
+
+                // Add time from the just-ended study segment to total study time
+                totalSessionStudyTime += Math.floor((Date.now() - currentSubjectStartTime) / 1000);
+                
+                currentPauseStartTime = Date.now(); // Start tracking pause time
+                releaseWakeLock();
+                toggleStudyPauseButton.textContent = "Resume Study";
+                currentSubjectDisplay.textContent = 'Paused';
+                subjectSelect.disabled = false; // Enable subject selection when paused
             }
-
-            clearInterval(studyTimer);
-            isStudying = false;
-            isBreak = true;
-            breakStartTime = Date.now();
-            breakCount++; // Increment break count
-            currentSubjectDisplay.textContent = `On Break!`;
-
-            takeBreakButton.style.display = 'none';
-            stopBreakButton.style.display = 'block';
-            stopStudyingButton.disabled = true; // Cannot stop study while on break
-            endSessionButton.disabled = true; // Cannot end session while on break
-            releaseWakeLock(); // Release wake lock during break
-        }
-
-        // Force an extra break beyond the limit
-        function forceExtraBreak() {
-            if (isBreak) return; // Already on break, cannot force another
-
-            extraBreaksUsed++; // Increment extra breaks
-            clearInterval(studyTimer);
-            isStudying = false;
-            isBreak = true;
-            breakStartTime = Date.now();
-            breakCount++; // Still count this break in total breaks
-            currentSubjectDisplay.textContent = `On Break! (Extra Break)`;
-
-            takeBreakButton.style.display = 'none'; // Ensure regular button is hidden
-            forceExtraBreakButton.style.display = 'none'; // Hide force button once used
-            stopBreakButton.style.display = 'block';
-            stopStudyingButton.disabled = true;
-            endSessionButton.disabled = true;
-            releaseWakeLock();
-        }
-
-        // Stop break timer and resume study timer
-        function stopBreak() {
-            if (!isBreak) return;
-
-            const currentBreakDuration = Math.floor((Date.now() - breakStartTime) / 1000);
-            totalBreakDuration += currentBreakDuration; // Add break duration
-
-            // Check break time limit
-            if (maxBreakDurationSeconds > 0 && currentBreakDuration > maxBreakDurationSeconds) {
-                const overtime = currentBreakDuration - maxBreakDurationSeconds;
-                const messageBox = document.createElement('div');
-                messageBox.className = 'message-box';
-                messageBox.textContent = `You went over your break time limit by ${formatTime(overtime)}!`;
-                studySessionScreen.insertBefore(messageBox, timerDisplay.nextSibling);
-                setTimeout(() => messageBox.remove(), 5000);
-            }
-
-            isBreak = false;
-            // Resume study timer from where it left off
-            studyStartTime = Date.now(); // Reset start time for accurate elapsed calculation
-            currentSubjectDisplay.textContent = `Studying: ${currentSubject}`;
-
-            takeBreakButton.style.display = 'block';
-            stopBreakButton.style.display = 'none';
-            forceExtraBreakButton.style.display = 'none'; // Hide force button when break ends
-            stopStudyingButton.disabled = false;
-            endSessionButton.disabled = false;
-            requestWakeLock(); // Re-request wake lock
-
-            studyTimer = setInterval(() => {
-                totalStudyDuration += 1;
-                sessionSubjectsDurations[currentSubject] += 1;
-                const elapsed = Math.floor((Date.now() - studyStartTime) / 1000);
-                timerDisplay.textContent = formatTime(elapsed);
-            }, 1000);
-        }
-
-        // Stop current studying, allow subject change
-        function stopStudying() {
-            if (!isStudying && !isBreak) return; // Not studying or on break
-
-            clearInterval(studyTimer);
-            clearInterval(breakTimer); // Ensure break timer is cleared if it was active
-            isStudying = false;
-            isBreak = false;
-            timerDisplay.textContent = '00:00:00';
-            currentSubjectDisplay.textContent = '';
-
-            // Ensure all buttons are correctly displayed/hidden and enabled
-            startTimerButton.style.display = 'block';
-            takeBreakButton.style.display = 'block';
-            stopBreakButton.style.display = 'none';
-            forceExtraBreakButton.style.display = 'none'; // Ensure this is hidden
-            stopStudyingButton.style.display = 'block';
-            endSessionButton.style.display = 'block';
-
-            subjectSelect.disabled = false;
-            stopStudyingButton.disabled = false; // Ensure it's not disabled if coming from break
-            endSessionButton.disabled = false; // Ensure it's not disabled if coming from break
-            releaseWakeLock(); // Release wake lock
         }
 
         // End the entire study session
         function endSession() {
-            clearInterval(studyTimer);
-            clearInterval(breakTimer);
-            isStudying = false;
-            isBreak = false;
+            clearInterval(sessionTimerInterval); // Stop any active study timer
+
+            // If still studying, add remaining time to total study and subject duration
+            if (isStudying) {
+                totalSessionStudyTime += Math.floor((Date.now() - currentSubjectStartTime) / 1000);
+                sessionSubjectsDurations[currentSubject] += Math.floor((Date.now() - currentSubjectStartTime) / 1000);
+            }
+            // If paused, add remaining time to total pause duration
+            if (!isStudying && currentPauseStartTime !== 0) {
+                totalSessionPauseTime += Math.floor((Date.now() - currentPauseStartTime) / 1000);
+            }
+
             releaseWakeLock();
 
-            renderOverview();
+            // Prepare session data for saving
+            const sessionData = {
+                date: new Date().toISOString(),
+                totalStudyDuration: totalSessionStudyTime,
+                totalPauseDuration: totalSessionPauseTime,
+                subjectsStudied: { ...sessionSubjectsDurations }
+            };
+            pastSessions.push(sessionData);
+            saveData(); // Save updated pastSessions to local storage
+
+            renderOverview(); // Render current session overview
             showScreen('overviewScreen');
 
             // Reset session data for next study
-            totalStudyDuration = 0;
+            totalSessionStudyTime = 0;
+            totalSessionPauseTime = 0;
             sessionSubjectsDurations = {};
             currentSubject = '';
-            breakCount = 0; // Reset break count
-            totalBreakDuration = 0; // Reset total break duration
-            extraBreaksUsed = 0; // Reset extra breaks
+            currentSubjectStartTime = 0;
+            currentPauseStartTime = 0;
+            isStudying = false;
+            
             timerDisplay.textContent = '00:00:00';
             currentSubjectDisplay.textContent = '';
-            startTimerButton.style.display = 'block';
-            takeBreakButton.style.display = 'block';
-            stopBreakButton.style.display = 'none';
-            forceExtraBreakButton.style.display = 'none'; // Ensure this is hidden
-            stopStudyingButton.style.display = 'block';
-            endSessionButton.style.display = 'block';
+            toggleStudyPauseButton.textContent = 'Start Timer'; // Reset button text
             subjectSelect.disabled = false;
         }
 
-        // Render session overview
+        // Render current session overview
         function renderOverview() {
             overviewSubjects.innerHTML = '';
             let maxDuration = 0;
@@ -628,7 +528,6 @@
             }
             sessionSummaryText.textContent = summaryText;
 
-
             if (Object.keys(sessionSubjectsDurations).length === 0) {
                 overviewSubjects.innerHTML = '<p class="text-center text-gray-400">No subjects recorded for this session.</p>';
             } else {
@@ -650,27 +549,51 @@
                     overviewSubjects.appendChild(subjectOverviewItem);
                 }
             }
-            totalSessionTime.textContent = formatTime(totalStudyDuration);
-            overviewBreaksTaken.textContent = `${breakCount} breaks (${extraBreaksUsed} extra)`;
-            overviewTotalBreakTime.textContent = formatTime(totalBreakDuration);
+            
+            overviewTotalStudyTime.textContent = `Active Study Time: ${formatTime(totalSessionStudyTime)}`;
+            overviewTotalIdleTime.textContent = `Idle/Paused Time: ${formatTime(totalSessionPauseTime)}`;
+            totalSessionDurationDisplay.textContent = formatTime(totalSessionStudyTime + totalSessionPauseTime);
 
-            // Clear previous info and display new ones
-            maxBreaksInfo.style.display = 'none';
-            maxBreakDurationInfo.style.display = 'none';
+            // Removed the lines that were causing the error, as these elements no longer exist in the HTML
+            // document.getElementById('maxBreaksInfo').style.display = 'none';
+            // document.getElementById('maxBreakDurationInfo').style.display = 'none';
+            // document.getElementById('overviewBreaksTaken').style.display = 'none';
+            // document.getElementById('overviewTotalBreakTime').style.display = 'none';
+        }
 
-            if (maxBreaksAllowed > 0) {
-                maxBreaksInfo.textContent = `Max breaks allowed: ${maxBreaksAllowed}`;
-                maxBreaksInfo.style.display = 'block';
+        // New function to render all past sessions
+        function renderAllSessionsOverview() {
+            pastSessionsList.innerHTML = '';
+            if (pastSessions.length === 0) {
+                pastSessionsList.innerHTML = '<p class="text-center text-gray-400">No past sessions recorded yet.</p>';
+                return;
             }
-            if (maxBreakDurationSeconds > 0) {
-                maxBreakDurationInfo.textContent = `Max break duration: ${formatTime(maxBreakDurationSeconds)}`;
-                maxBreakDurationInfo.style.display = 'block';
-            }
+
+            const sortedSessions = [...pastSessions].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            sortedSessions.forEach((session, index) => {
+                const sessionDate = new Date(session.date).toLocaleString();
+                const subjectsSummary = Object.keys(session.subjectsStudied).join(', ') || 'None';
+                const totalStudyFormatted = formatTime(session.totalStudyDuration);
+                const totalPauseFormatted = formatTime(session.totalPauseDuration);
+                const totalSessionOverallDuration = formatTime(session.totalStudyDuration + session.totalPauseDuration);
+
+                const sessionItem = document.createElement('div');
+                sessionItem.className = 'bg-gray-700 p-4 rounded-xl shadow-md';
+                sessionItem.innerHTML = `
+                    <h3 class="text-lg font-semibold text-blue-300 mb-2">Session on ${sessionDate}</h3>
+                    <p class="text-sm text-gray-300 mb-1">Studied: ${subjectsSummary}</p>
+                    <p class="text-sm text-gray-300 mb-1">Active Study Time: <span class="font-medium">${totalStudyFormatted}</span></p>
+                    <p class="text-sm text-gray-300 mb-1">Idle/Paused Time: <span class="font-medium">${totalPauseFormatted}</span></p>
+                    <p class="text-sm text-gray-300">Total Session Duration: <span class="font-medium">${totalSessionOverallDuration}</span></p>
+                `;
+                pastSessionsList.appendChild(sessionItem);
+            });
         }
 
         // Event Listeners
         enterAppButton.onclick = () => {
-            saveData(); // Save data including new break settings
+            saveData();
             showScreen('mainAppScreen');
             renderSubjects();
             populateSubjectSelect();
@@ -686,40 +609,36 @@
         startStudyingButton.onclick = () => {
             showScreen('studySessionScreen');
             populateSubjectSelect();
-            // Reset timer display and buttons for a new session
             timerDisplay.textContent = '00:00:00';
             currentSubjectDisplay.textContent = '';
-            startTimerButton.style.display = 'block';
-            takeBreakButton.style.display = 'block';
-            stopBreakButton.style.display = 'none';
-            forceExtraBreakButton.style.display = 'none'; // Ensure hidden at start of session
-            stopStudyingButton.style.display = 'block';
-            endSessionButton.style.display = 'block';
-            subjectSelect.disabled = false;
+            toggleStudyPauseButton.textContent = 'Start Timer'; // Ensure button text is "Start Timer"
+            subjectSelect.disabled = false; // Ensure subject select is enabled when starting a new session
         };
 
-        startTimerButton.onclick = startStudyTimer;
-        takeBreakButton.onclick = takeBreak;
-        stopBreakButton.onclick = stopBreak;
-        forceExtraBreakButton.onclick = forceExtraBreak; // Event listener for new button
-        stopStudyingButton.onclick = stopStudying;
+        viewAllSessionsButton.onclick = () => {
+            renderAllSessionsOverview();
+            showScreen('allSessionsOverviewScreen');
+        };
+
+        toggleStudyPauseButton.onclick = toggleStudyPause; // Main button for start/pause/resume
         endSessionButton.onclick = endSession;
         backToMainButton.onclick = () => {
             showScreen('mainAppScreen');
             renderSubjects();
             populateSubjectSelect();
         };
+        backToMainFromAllSessionsButton.onclick = () => {
+            showScreen('mainAppScreen');
+        };
 
         // Initialize the app on page load
         window.onload = () => {
             loadData();
             if (userData.name) {
-                // If user data exists, skip menu and go to main app
                 showScreen('mainAppScreen');
                 renderSubjects();
                 populateSubjectSelect();
             } else {
-                // Otherwise, show the menu screen
                 showScreen('menuScreen');
             }
         };
