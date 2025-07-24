@@ -200,6 +200,43 @@
             margin-bottom: 0; /* Override default margin-bottom for inputs */
             width: auto; /* Adjust width for checkbox */
         }
+        /* Update Notification Screen Styling */
+        .update-notification-screen {
+            background-color: #2d3748;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            padding: 2rem;
+            text-align: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .update-notification-screen h1 {
+            color: #4299e1;
+            font-size: 2.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .update-notification-screen h2 {
+            color: #63b3ed;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .update-notification-screen ul {
+            list-style: none; /* Remove default bullet */
+            padding-left: 0;
+            margin-bottom: 1.5rem;
+        }
+        .update-notification-screen ul li {
+            background-color: #4a5568;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            text-align: left;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+        }
     </style>
 </head>
 <body>
@@ -218,6 +255,16 @@
                 <label for="privacyAcceptCheckbox" class="text-gray-300 text-sm">I understand and agree to the privacy policy.</label>
             </div>
             <button id="privacyContinueButton" class="w-full" disabled>Continue</button>
+        </div>
+
+        <!-- Update Notification Screen -->
+        <div id="updateNotificationScreen" class="screen update-notification-screen">
+            <h1 class="text-3xl font-bold mb-6">New Update!</h1>
+            <h2 id="updateTitle" class="text-2xl font-semibold mb-4"></h2>
+            <ul id="updateNotes" class="mb-6">
+                <!-- Update notes will be dynamically inserted here -->
+            </ul>
+            <button id="updateContinueButton" class="w-full">Continue to App</button>
         </div>
 
         <!-- Menu Screen -->
@@ -348,13 +395,8 @@
         <!-- Patch Notes Screen -->
         <div id="patchNotesScreen" class="screen">
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Patch Notes & Updates</h1>
-            <ul class="list-disc list-inside text-gray-300 mb-6">
-                <li>**Initial Release:** Basic study timer, subject management, and session overview.</li>
-                <li>**Bug Fixes & Enhanced Overview:** Fixed timer responsiveness bug, added total break time and break count to session overview.</li>
-                <li>**Simplified Timer & Idle Tracking:** Removed dedicated break feature, implemented single pause/resume button, tracked idle time, and updated overview to show active study vs. idle time.</li>
-                <li>**Session Naming & Total Analytics:** Added ability to name past sessions, introduced "Total Study Analytics" screen with line graphs for study time trends and bar charts for overall subjects studied.</li>
-                <li>**Settings Menu, Delete Session & Privacy Policy:** Added settings menu for name/school, delete session feature, and implemented a mandatory privacy policy on first launch (or if not accepted).</li>
-                <li>**Advanced Analytics & Filtering:** Added "Daily Study Time" and "Idle Time Trend" graphs to total overview. Implemented date range filtering for all total overview charts.</li>
+            <ul id="patchNotesList" class="list-disc list-inside text-gray-300 mb-6">
+                <!-- Patch notes will be dynamically inserted here -->
             </ul>
             <p class="text-sm text-gray-400 mt-6">-> If there is an update, this app updates automatically.</p>
             <p class="text-sm text-gray-400">-> After an update, please note that it might not apply to the sessions done before the update.</p>
@@ -436,29 +478,96 @@
     </div>
 
     <script>
+        // Define app versions and patch notes
+        const patchNotesData = [
+            {
+                version: "1.0",
+                title: "Initial Release",
+                notes: [
+                    "Basic study timer, subject management, and session overview."
+                ]
+            },
+            {
+                version: "1.1",
+                title: "Bug Fixes & Enhanced Overview",
+                notes: [
+                    "Fixed timer responsiveness bug.",
+                    "Added total break time and break count to session overview."
+                ]
+            },
+            {
+                version: "1.2",
+                title: "Simplified Timer & Idle Tracking",
+                notes: [
+                    "Removed dedicated break feature, implemented single pause/resume button.",
+                    "Tracked idle time, and updated overview to show active study vs. idle time."
+                ]
+            },
+            {
+                version: "1.3",
+                title: "Session Naming & Total Analytics",
+                notes: [
+                    "Added ability to name past sessions.",
+                    "Introduced 'Total Study Analytics' screen with line graphs for study time trends and bar charts for overall subjects studied."
+                ]
+            },
+            {
+                version: "1.4",
+                title: "Settings Menu, Delete Session & Privacy Policy",
+                notes: [
+                    "Added settings menu for name/school.",
+                    "Added delete session feature.",
+                    "Implemented a mandatory privacy policy on first launch (or if not accepted)."
+                ]
+            },
+            {
+                version: "1.5",
+                title: "Advanced Analytics & Filtering",
+                notes: [
+                    "Added 'Daily Study Time' and 'Idle Time Trend' graphs to total overview.",
+                    "Implemented date range filtering for all total overview charts."
+                ]
+            },
+            {
+                version: "1.6", // Current version
+                title: "New Update Notification & Enhanced UX",
+                notes: [
+                    "Implemented a one-time update notification screen on new app versions.",
+                    "Added a 'Delete Session' confirmation modal for better user experience.",
+                    "Updated Patch Notes and Help sections to reflect all changes."
+                ]
+            }
+        ];
+        const currentAppVersion = "1.6"; // Define the current version of the app
+
         // Global variables for app state
         let userData = {};
-        let currentScreen = 'privacyPolicyScreen'; // Start with privacy policy screen
+        let currentScreen = 'privacyPolicyScreen'; // Initial screen for all users
         let subjects = [];
-        let sessionTimerInterval = null; // Main interval for study timer
-        let currentSubjectStartTime = 0; // Timestamp when current study segment began
-        let currentPauseStartTime = 0; // Timestamp when current pause segment began
-        let totalSessionStudyTime = 0; // Cumulative time actively studying in current session
-        let totalSessionPauseTime = 0; // Cumulative time paused/idle in current session
-        let sessionSubjectsDurations = {}; // {subjectName: durationInSeconds} for active study
+        let sessionTimerInterval = null;
+        let currentSubjectStartTime = 0;
+        let currentPauseStartTime = 0;
+        let totalSessionStudyTime = 0;
+        let totalSessionPauseTime = 0;
+        let sessionSubjectsDurations = {};
         let currentSubject = '';
-        let isStudying = false; // True if actively studying, false if paused or session not started
+        let isStudying = false;
         let wakeLock = null;
-        let pastSessions = []; // Array to store data for all past sessions
-        let currentChart1 = null; // To store Chart.js instance for trend chart
-        let currentChart2 = null; // To store Chart.js instance for subjects chart
-        let currentChart3 = null; // New Chart.js instance for idle time trend
-        let currentChart4 = null; // New Chart.js instance for daily study time
+        let pastSessions = [];
+        let currentChart1 = null;
+        let currentChart2 = null;
+        let currentChart3 = null;
+        let currentChart4 = null;
 
         // DOM Elements
-        const privacyPolicyScreen = document.getElementById('privacyPolicyScreen'); // New screen
-        const privacyAcceptCheckbox = document.getElementById('privacyAcceptCheckbox'); // New checkbox
-        const privacyContinueButton = document.getElementById('privacyContinueButton'); // New button
+        const privacyPolicyScreen = document.getElementById('privacyPolicyScreen');
+        const privacyAcceptCheckbox = document.getElementById('privacyAcceptCheckbox');
+        const privacyContinueButton = document.getElementById('privacyContinueButton');
+
+        const updateNotificationScreen = document.getElementById('updateNotificationScreen'); // New screen
+        const updateTitle = document.getElementById('updateTitle');
+        const updateNotes = document.getElementById('updateNotes');
+        const updateContinueButton = document.getElementById('updateContinueButton');
 
         const menuScreen = document.getElementById('menuScreen');
         const userNameInput = document.getElementById('userNameInput');
@@ -497,13 +606,13 @@
 
         const totalOverviewScreen = document.getElementById('totalOverviewScreen');
         const totalOverviewSummary = document.getElementById('totalOverviewSummary');
-        const fromDateInput = document.getElementById('fromDateInput'); // New date input
-        const toDateInput = document.getElementById('toDateInput');     // New date input
-        const filterChartsButton = document.getElementById('filterChartsButton'); // New filter button
-        const clearFilterButton = document.getElementById('clearFilterButton'); // New clear filter button
+        const fromDateInput = document.getElementById('fromDateInput');
+        const toDateInput = document.getElementById('toDateInput');
+        const filterChartsButton = document.getElementById('filterChartsButton');
+        const clearFilterButton = document.getElementById('clearFilterButton');
         const studyTimeTrendChartCanvas = document.getElementById('studyTimeTrendChart');
-        const idleTimeTrendChartCanvas = document.getElementById('idleTimeTrendChart'); // New chart canvas
-        const dailyStudyChartCanvas = document.getElementById('dailyStudyChart');     // New chart canvas
+        const idleTimeTrendChartCanvas = document.getElementById('idleTimeTrendChart');
+        const dailyStudyChartCanvas = document.getElementById('dailyStudyChart');
         const subjectsOverallChartCanvas = document.getElementById('subjectsOverallChart');
         const backToAllSessionsButton = document.getElementById('backToAllSessionsButton');
 
@@ -517,6 +626,7 @@
         const backToMainFromSettingsButton = document.getElementById('backToMainFromSettingsButton');
 
         const patchNotesScreen = document.getElementById('patchNotesScreen');
+        const patchNotesList = document.getElementById('patchNotesList');
         const backToSettingsFromPatchNotesButton = document.getElementById('backToSettingsFromPatchNotesButton');
 
         const helpScreen = document.getElementById('helpScreen');
@@ -541,6 +651,7 @@
         function saveData() {
             userData.name = userNameInput.value.trim();
             userData.school = schoolNameInput.value.trim();
+            userData.lastUpdateVersion = userData.lastUpdateVersion || "0.0"; // Ensure it's initialized
             localStorage.setItem('analStudyData', JSON.stringify(userData));
             localStorage.setItem('analStudySubjects', JSON.stringify(subjects));
             localStorage.setItem('analStudyPastSessions', JSON.stringify(pastSessions));
@@ -558,6 +669,8 @@
                 schoolNameInput.value = userData.school || '';
                 settingsUserNameInput.value = userData.name || '';
                 settingsSchoolNameInput.value = userData.school || '';
+            } else {
+                userData = { privacyAccepted: false, lastUpdateVersion: "0.0" }; // Default for new users
             }
             if (storedSubjects) {
                 subjects = JSON.parse(storedSubjects);
@@ -933,7 +1046,7 @@
             });
         }
 
-        // Function to render total overview analytics
+        // Render total overview analytics
         function renderTotalOverview() {
             let filteredSessions = pastSessions;
 
@@ -1000,8 +1113,8 @@
             // Destroy existing charts if they exist
             if (currentChart1) currentChart1.destroy();
             if (currentChart2) currentChart2.destroy();
-            if (currentChart3) currentChart3.destroy(); // Destroy idle time trend chart
-            if (currentChart4) currentChart4.destroy(); // Destroy daily study chart
+            if (currentChart3) currentChart3.destroy();
+            if (currentChart4) currentChart4.destroy();
 
             // Chart 1: Study Time Trend per Session
             const ctx1 = studyTimeTrendChartCanvas.getContext('2d');
@@ -1171,7 +1284,23 @@
         privacyContinueButton.onclick = () => {
             userData.privacyAccepted = true;
             saveData();
-            // Check if user data exists to decide next screen
+            // After accepting privacy, check for updates
+            if (userData.lastUpdateVersion < currentAppVersion) {
+                renderUpdateNotification();
+                showScreen('updateNotificationScreen');
+            } else if (userData.name) {
+                showScreen('mainAppScreen');
+                renderSubjects();
+                populateSubjectSelect();
+            } else {
+                showScreen('menuScreen');
+            }
+        };
+
+        // Update Notification Screen
+        updateContinueButton.onclick = () => {
+            userData.lastUpdateVersion = currentAppVersion; // Mark update as seen
+            saveData();
             if (userData.name) {
                 showScreen('mainAppScreen');
                 renderSubjects();
@@ -1228,11 +1357,12 @@
 
         viewPrivacyPolicyButton.onclick = () => {
             showScreen('privacyPolicyScreen');
-            privacyAcceptCheckbox.checked = userData.privacyAccepted || false; // Keep checked if already accepted
+            privacyAcceptCheckbox.checked = userData.privacyAccepted || false;
             privacyContinueButton.disabled = !privacyAcceptCheckbox.checked;
         };
 
         patchNotesButton.onclick = () => {
+            renderPatchNotes(); // Render all patch notes
             showScreen('patchNotesScreen');
         };
 
@@ -1260,18 +1390,18 @@
         };
 
         viewTotalOverviewButton.onclick = () => {
-            renderTotalOverview(); // Initial render without filter
+            renderTotalOverview();
             showScreen('totalOverviewScreen');
         };
 
-        filterChartsButton.onclick = () => { // New filter button listener
+        filterChartsButton.onclick = () => {
             renderTotalOverview();
         };
 
-        clearFilterButton.onclick = () => { // New clear filter button listener
+        clearFilterButton.onclick = () => {
             fromDateInput.value = '';
             toDateInput.value = '';
-            renderTotalOverview(); // Re-render with no filter
+            renderTotalOverview();
         };
 
         backToAllSessionsButton.onclick = () => {
@@ -1291,21 +1421,52 @@
             }
         });
 
+        // Function to render the latest update notification
+        function renderUpdateNotification() {
+            const latestUpdate = patchNotesData[patchNotesData.length - 1];
+            updateTitle.textContent = `${latestUpdate.title} (v${latestUpdate.version})`;
+            updateNotes.innerHTML = '';
+            latestUpdate.notes.forEach(note => {
+                const li = document.createElement('li');
+                li.textContent = `-> ${note}`;
+                updateNotes.appendChild(li);
+            });
+        }
+
+        // Function to render all patch notes
+        function renderPatchNotes() {
+            patchNotesList.innerHTML = '';
+            patchNotesData.forEach(patch => {
+                const li = document.createElement('li');
+                li.innerHTML = `**${patch.title} (v${patch.version}):**`;
+                const ul = document.createElement('ul');
+                ul.className = 'list-disc list-inside ml-4 mt-1 mb-2';
+                patch.notes.forEach(note => {
+                    const noteLi = document.createElement('li');
+                    noteLi.textContent = note;
+                    ul.appendChild(noteLi);
+                });
+                li.appendChild(ul);
+                patchNotesList.appendChild(li);
+            });
+        }
 
         // Initialize the app on page load
         window.onload = () => {
             loadData();
-            // Check if privacy policy has been accepted
-            if (userData.privacyAccepted) {
-                if (userData.name) {
-                    showScreen('mainAppScreen');
-                    renderSubjects();
-                    populateSubjectSelect();
-                } else {
-                    showScreen('menuScreen');
-                }
-            } else {
+
+            // Determine which screen to show first
+            if (!userData.privacyAccepted) {
                 showScreen('privacyPolicyScreen');
+            } else if (userData.lastUpdateVersion < currentAppVersion) {
+                renderUpdateNotification();
+                showScreen('updateNotificationScreen');
+            } else if (userData.name) {
+                showScreen('mainAppScreen');
+                renderSubjects();
+                populateSubjectSelect();
+            } else {
+                showScreen('menuScreen');
             }
         };
     </script>
