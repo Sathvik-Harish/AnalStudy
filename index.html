@@ -180,12 +180,39 @@
             border-radius: 0.75rem;
             padding: 1rem;
         }
+        .privacy-checkbox-container {
+            display: flex;
+            align-items: center;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        .privacy-checkbox-container input[type="checkbox"] {
+            margin-right: 0.5rem;
+            margin-bottom: 0; /* Override default margin-bottom for inputs */
+            width: auto; /* Adjust width for checkbox */
+        }
     </style>
 </head>
 <body>
     <div class="app-container">
+        <!-- Privacy Policy Screen -->
+        <div id="privacyPolicyScreen" class="screen active">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Privacy Policy</h1>
+            <p class="mb-4 text-gray-300">Please read our privacy policy before continuing:</p>
+            <ul class="list-disc list-inside text-gray-400 mb-6">
+                <li>Your data may be lost during an update.</li>
+                <li>Your data, such as your name and school, is stored locally in your browser's cache and is not collected, used, or transmitted by Strixel Studios.</li>
+                <li>Updates may not apply to older sessions so please understand.</li>
+            </ul>
+            <div class="privacy-checkbox-container">
+                <input type="checkbox" id="privacyAcceptCheckbox">
+                <label for="privacyAcceptCheckbox" class="text-gray-300 text-sm">I understand and agree to the privacy policy.</label>
+            </div>
+            <button id="privacyContinueButton" class="w-full" disabled>Continue</button>
+        </div>
+
         <!-- Menu Screen -->
-        <div id="menuScreen" class="screen active">
+        <div id="menuScreen" class="screen">
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">AnalStudy</h1>
             <p class="text-center mb-4">Welcome to your study companion!</p>
             <input type="text" id="userNameInput" placeholder="Your Name" class="w-full">
@@ -279,7 +306,83 @@
             <label for="settingsSchoolNameInput" class="text-gray-300 text-sm mb-1 block">School Name (Optional):</label>
             <input type="text" id="settingsSchoolNameInput" placeholder="School Name (Optional)" class="w-full mb-4">
             <button id="saveSettingsButton" class="w-full">Save Settings</button>
+            <button id="viewPrivacyPolicyButton" class="w-full mt-4">View Privacy Policy</button>
+            <button id="patchNotesButton" class="w-full mt-4">Patch Notes & Updates</button>
+            <button id="helpButton" class="w-full mt-4">Help</button>
             <button id="backToMainFromSettingsButton" class="w-full mt-4">Back to Main Menu</button>
+        </div>
+
+        <!-- Patch Notes Screen -->
+        <div id="patchNotesScreen" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Patch Notes & Updates</h1>
+            <ul class="list-disc list-inside text-gray-300 mb-6">
+                <li>**Initial Release:** Basic study timer, subject management, and session overview.</li>
+                <li>**Bug Fixes & Enhanced Overview:** Fixed timer responsiveness bug, added total break time and break count to session overview.</li>
+                <li>**Simplified Timer & Idle Tracking:** Removed dedicated break feature, implemented single pause/resume button, tracked idle time, and updated overview to show active study vs. idle time.</li>
+                <li>**Session Naming & Total Analytics:** Added ability to name past sessions, introduced "Total Study Analytics" screen with line graphs for study time trends and bar charts for overall subjects studied.</li>
+                <li>**Settings Menu, Delete Session & Privacy Policy:** Added settings menu for name/school, delete session feature, and implemented a mandatory privacy policy on first launch (or if not accepted).</li>
+            </ul>
+            <p class="text-sm text-gray-400 mt-6">-> If there is an update, this app updates automatically.</p>
+            <p class="text-sm text-gray-400">-> After an update, please note that it might not apply to the sessions done before the update.</p>
+            <button id="backToSettingsFromPatchNotesButton" class="w-full mt-auto">Back to Settings</button>
+        </div>
+
+        <!-- Help Screen -->
+        <div id="helpScreen" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Help & Features</h1>
+            <h2 class="text-xl font-semibold text-blue-300 mb-2">Getting Started:</h2>
+            <ul class="list-disc list-inside text-gray-300 mb-4">
+                <li>On first launch, accept the Privacy Policy.</li>
+                <li>Enter your Name and School (optional) on the welcome screen.</li>
+            </ul>
+
+            <h2 class="text-xl font-semibold text-blue-300 mb-2">Subjects:</h2>
+            <ul class="list-disc list-inside text-gray-300 mb-4">
+                <li>Add new subjects using the input field and "Add Subject" button.</li>
+                <li>Remove existing subjects using the "Remove" button next to each subject.</li>
+            </ul>
+
+            <h2 class="text-xl font-semibold text-blue-300 mb-2">Study Session:</h2>
+            <ul class="list-disc list-inside text-gray-300 mb-4">
+                <li>Select a subject from the dropdown.</li>
+                <li>Click "Start Timer" to begin studying. The screen will stay on.</li>
+                <li>Click "Pause Study" to temporarily stop the timer. This time counts as idle time.</li>
+                <li>While paused, you can change the subject.</li>
+                <li>Click "Resume Study" to continue studying the selected subject. The timer for the current segment will reset to 0:00.</li>
+                <li>Click "End Session" to finish your study session and view its overview.</li>
+            </ul>
+
+            <h2 class="text-xl font-semibold text-blue-300 mb-2">Session Overview:</h2>
+            <ul class="list-disc list-inside text-gray-300 mb-4">
+                <li>Shows a summary of your most focused subject.</li>
+                <li>Displays time spent on each subject with a progress bar.</li>
+                <li>Breaks down total time into "Active Study Time" and "Idle/Paused Time".</li>
+            </ul>
+
+            <h2 class="text-xl font-semibold text-blue-300 mb-2">All Past Sessions:</h2>
+            <ul class="list-disc list-inside text-gray-300 mb-4">
+                <li>View a list of all your past study sessions.</li>
+                <li>Click "Edit Name" next to a session to give it a custom name.</li>
+                <li>Click "Delete" next to a session to permanently remove it from your history.</li>
+                <li>Click "View Total Overview" for aggregated analytics.</li>
+            </ul>
+
+            <h2 class="text-xl font-semibold text-blue-300 mb-2">Total Study Analytics:</h2>
+            <ul class="list-disc list-inside text-gray-300 mb-4">
+                <li>Provides an overall summary of your study history.</li>
+                <li>**Study Time Trend (per session):** A line graph showing your active study duration for each session over time.</li>
+                <li>**Top Subjects Studied Overall:** A bar chart displaying the total time spent on each subject across all sessions.</li>
+            </ul>
+
+            <h2 class="text-xl font-semibold text-blue-300 mb-2">Settings:</h2>
+            <ul class="list-disc list-inside text-gray-300 mb-4">
+                <li>Change your Name and School.</li>
+                <li>View the Privacy Policy.</li>
+                <li>Access "Patch Notes & Updates" for app version history.</li>
+                <li>Access this "Help" section.</li>
+            </ul>
+
+            <button id="backToSettingsFromHelpButton" class="w-full mt-auto">Back to Settings</button>
         </div>
 
         <!-- Modal for Renaming Session -->
@@ -298,7 +401,7 @@
     <script>
         // Global variables for app state
         let userData = {};
-        let currentScreen = 'menuScreen';
+        let currentScreen = 'privacyPolicyScreen'; // Start with privacy policy screen
         let subjects = [];
         let sessionTimerInterval = null; // Main interval for study timer
         let currentSubjectStartTime = 0; // Timestamp when current study segment began
@@ -314,6 +417,10 @@
         let currentChart2 = null; // To store Chart.js instance for subjects chart
 
         // DOM Elements
+        const privacyPolicyScreen = document.getElementById('privacyPolicyScreen'); // New screen
+        const privacyAcceptCheckbox = document.getElementById('privacyAcceptCheckbox'); // New checkbox
+        const privacyContinueButton = document.getElementById('privacyContinueButton'); // New button
+
         const menuScreen = document.getElementById('menuScreen');
         const userNameInput = document.getElementById('userNameInput');
         const schoolNameInput = document.getElementById('schoolNameInput');
@@ -346,26 +453,35 @@
 
         const allSessionsOverviewScreen = document.getElementById('allSessionsOverviewScreen');
         const pastSessionsList = document.getElementById('pastSessionsList');
-        const viewTotalOverviewButton = document.getElementById('viewTotalOverviewButton'); // New button
+        const viewTotalOverviewButton = document.getElementById('viewTotalOverviewButton');
         const backToMainFromAllSessionsButton = document.getElementById('backToMainFromAllSessionsButton');
 
-        const totalOverviewScreen = document.getElementById('totalOverviewScreen'); // New screen
-        const totalOverviewSummary = document.getElementById('totalOverviewSummary'); // New element
-        const studyTimeTrendChartCanvas = document.getElementById('studyTimeTrendChart'); // Chart canvas
-        const subjectsOverallChartCanvas = document.getElementById('subjectsOverallChart'); // Chart canvas
-        const backToAllSessionsButton = document.getElementById('backToAllSessionsButton'); // New button
+        const totalOverviewScreen = document.getElementById('totalOverviewScreen');
+        const totalOverviewSummary = document.getElementById('totalOverviewSummary');
+        const studyTimeTrendChartCanvas = document.getElementById('studyTimeTrendChart');
+        const subjectsOverallChartCanvas = document.getElementById('subjectsOverallChart');
+        const backToAllSessionsButton = document.getElementById('backToAllSessionsButton');
 
         const settingsScreen = document.getElementById('settingsScreen');
         const settingsUserNameInput = document.getElementById('settingsUserNameInput');
         const settingsSchoolNameInput = document.getElementById('settingsSchoolNameInput');
         const saveSettingsButton = document.getElementById('saveSettingsButton');
+        const viewPrivacyPolicyButton = document.getElementById('viewPrivacyPolicyButton'); // New button
+        const patchNotesButton = document.getElementById('patchNotesButton'); // New button
+        const helpButton = document.getElementById('helpButton'); // New button
         const backToMainFromSettingsButton = document.getElementById('backToMainFromSettingsButton');
 
-        const renameModal = document.getElementById('renameModal'); // Rename modal
-        const newSessionNameInput = document.getElementById('newSessionNameInput'); // Rename input
-        const cancelRenameButton = document.getElementById('cancelRenameButton'); // Rename cancel button
-        const confirmRenameButton = document.getElementById('confirmRenameButton'); // Rename confirm button
-        let sessionToRenameIndex = -1; // Index of the session being renamed
+        const patchNotesScreen = document.getElementById('patchNotesScreen'); // New screen
+        const backToSettingsFromPatchNotesButton = document.getElementById('backToSettingsFromPatchNotesButton'); // New button
+
+        const helpScreen = document.getElementById('helpScreen'); // New screen
+        const backToSettingsFromHelpButton = document.getElementById('backToSettingsFromHelpButton'); // New button
+
+        const renameModal = document.getElementById('renameModal');
+        const newSessionNameInput = document.getElementById('newSessionNameInput');
+        const cancelRenameButton = document.getElementById('cancelRenameButton');
+        const confirmRenameButton = document.getElementById('confirmRenameButton');
+        let sessionToRenameIndex = -1;
 
         // Function to switch screens
         function showScreen(screenId) {
@@ -693,6 +809,16 @@
             }
         }
 
+        // Function to delete a session
+        function deleteSession(sessionId) {
+            const confirmed = confirm("Are you sure you want to delete this session? This action cannot be undone.");
+            if (confirmed) {
+                pastSessions = pastSessions.filter(session => session.id !== sessionId);
+                saveData();
+                renderAllSessionsOverview(); // Re-render the list
+            }
+        }
+
         // Render all past sessions overview
         function renderAllSessionsOverview() {
             pastSessionsList.innerHTML = '';
@@ -716,6 +842,7 @@
                     <h3>
                         <span class="font-semibold text-blue-300">${session.name}</span>
                         <button class="edit-button" data-session-id="${session.id}">Edit Name</button>
+                        <button class="delete-button" data-session-id="${session.id}">Delete</button>
                     </h3>
                     <p class="text-sm text-gray-300 mb-1">Date: ${sessionDate}</p>
                     <p class="text-sm text-gray-300 mb-1">Studied: ${subjectsSummary}</p>
@@ -726,11 +853,17 @@
                 pastSessionsList.appendChild(sessionItem);
             });
 
-            // Add event listeners for edit buttons
+            // Add event listeners for edit and delete buttons
             document.querySelectorAll('.edit-button').forEach(button => {
                 button.onclick = (event) => {
                     const sessionId = parseInt(event.target.dataset.sessionId);
                     openRenameModal(sessionId);
+                };
+            });
+            document.querySelectorAll('.delete-button').forEach(button => {
+                button.onclick = (event) => {
+                    const sessionId = parseInt(event.target.dataset.sessionId);
+                    deleteSession(sessionId);
                 };
             });
         }
@@ -746,7 +879,8 @@
             pastSessions.forEach(session => {
                 overallTotalStudy += session.totalStudyDuration;
                 overallTotalPause += session.totalPauseDuration;
-                sessionDates.push(new Date(session.date).toLocaleDateString());
+                // Use session name if available, otherwise default to date
+                sessionDates.push(session.name || new Date(session.date).toLocaleDateString());
                 sessionStudyDurations.push(session.totalStudyDuration / 60); // Convert to minutes for chart
 
                 for (const subject in session.subjectsStudied) {
@@ -807,7 +941,7 @@
                         x: {
                             title: {
                                 display: true,
-                                text: 'Session Date',
+                                text: 'Session Name / Date',
                                 color: '#e2e8f0'
                             },
                             ticks: {
@@ -898,6 +1032,24 @@
         }
 
         // Event Listeners
+        // Privacy Policy Screen
+        privacyAcceptCheckbox.onchange = () => {
+            privacyContinueButton.disabled = !privacyAcceptCheckbox.checked;
+        };
+
+        privacyContinueButton.onclick = () => {
+            userData.privacyAccepted = true;
+            saveData();
+            // Check if user data exists to decide next screen
+            if (userData.name) {
+                showScreen('mainAppScreen');
+                renderSubjects();
+                populateSubjectSelect();
+            } else {
+                showScreen('menuScreen');
+            }
+        };
+
         enterAppButton.onclick = () => {
             saveData();
             showScreen('mainAppScreen');
@@ -943,6 +1095,29 @@
             showScreen('mainAppScreen');
         };
 
+        viewPrivacyPolicyButton.onclick = () => { // New event listener for view privacy policy
+            showScreen('privacyPolicyScreen');
+            // Ensure checkbox is checked if already accepted, but allow re-checking
+            privacyAcceptCheckbox.checked = userData.privacyAccepted || false;
+            privacyContinueButton.disabled = !privacyAcceptCheckbox.checked;
+        };
+
+        patchNotesButton.onclick = () => { // New event listener for patch notes
+            showScreen('patchNotesScreen');
+        };
+
+        helpButton.onclick = () => { // New event listener for help
+            showScreen('helpScreen');
+        };
+
+        backToSettingsFromPatchNotesButton.onclick = () => { // New event listener for back from patch notes
+            showScreen('settingsScreen');
+        };
+
+        backToSettingsFromHelpButton.onclick = () => { // New event listener for back from help
+            showScreen('settingsScreen');
+        };
+
         toggleStudyPauseButton.onclick = toggleStudyPause;
         endSessionButton.onclick = endSession;
         backToMainButton.onclick = () => {
@@ -954,16 +1129,14 @@
             showScreen('mainAppScreen');
         };
 
-        // New event listener for View Total Overview button
         viewTotalOverviewButton.onclick = () => {
             renderTotalOverview();
             showScreen('totalOverviewScreen');
         };
 
-        // New event listener for Back to All Sessions button
         backToAllSessionsButton.onclick = () => {
             showScreen('allSessionsOverviewScreen');
-            renderAllSessionsOverview(); // Re-render to ensure latest names are shown
+            renderAllSessionsOverview();
         };
 
         // Rename modal event listeners
@@ -982,12 +1155,17 @@
         // Initialize the app on page load
         window.onload = () => {
             loadData();
-            if (userData.name) {
-                showScreen('mainAppScreen');
-                renderSubjects();
-                populateSubjectSelect();
+            // Check if privacy policy has been accepted
+            if (userData.privacyAccepted) {
+                if (userData.name) {
+                    showScreen('mainAppScreen');
+                    renderSubjects();
+                    populateSubjectSelect();
+                } else {
+                    showScreen('menuScreen');
+                }
             } else {
-                showScreen('menuScreen');
+                showScreen('privacyPolicyScreen');
             }
         };
     </script>
