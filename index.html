@@ -8,61 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-        // Global Firebase variables (will be initialized in main script)
-        window.firebaseApp = null;
-        window.db = null;
-        window.auth = null;
-        window.userId = null; // Firebase Auth UID
-
-        // Initialize Firebase
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; // Use provided app ID
-
-        if (Object.keys(firebaseConfig).length > 0) {
-            window.firebaseApp = initializeApp(firebaseConfig);
-            window.db = getFirestore(window.firebaseApp);
-            window.auth = getAuth(window.firebaseApp);
-
-            // Authenticate with custom token or anonymously
-            onAuthStateChanged(window.auth, async (user) => {
-                if (user) {
-                    window.userId = user.uid;
-                    console.log("Firebase initialized. User ID:", window.userId);
-                    // Trigger app initialization after Firebase is ready
-                    window.dispatchEvent(new CustomEvent('firebaseReady'));
-                } else {
-                    // If no user, try to sign in anonymously if a token is provided
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(window.auth, __initial_auth_token);
-                        } else {
-                            // If no token, or if anonymous sign-in is needed for initial access
-                            // we'll handle the login/signup flow in proceedAfterFirebaseReady
-                            window.userId = null; // Ensure userId is null if not authenticated
-                            window.dispatchEvent(new CustomEvent('firebaseReady'));
-                        }
-                    } catch (error) {
-                        console.error("Firebase anonymous authentication failed:", error);
-                        window.userId = null;
-                        window.dispatchEvent(new CustomEvent('firebaseReady'));
-                    }
-                }
-            });
-        } else {
-            console.warn("Firebase config not found. Running in local-only mode.");
-            // If no Firebase config, proceed with local-only mode after a short delay
-            setTimeout(() => {
-                window.userId = crypto.randomUUID(); // Generate a local ID for local-only mode
-                window.dispatchEvent(new CustomEvent('firebaseReady'));
-            }, 100);
-        }
-    </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -375,32 +320,14 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Initial Auth Screen -->
-        <div id="initialAuthScreen" class="screen active">
+        <!-- Menu Screen (Initial Entry) -->
+        <div id="menuScreen" class="screen active">
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">AnalStudy</h1>
-            <p class="text-center mb-4">Welcome back or join us!</p>
-            <button id="loginButton" class="w-full">Login</button>
-            <button id="signupButton" class="w-full mt-4">Signup</button>
-        </div>
-
-        <!-- Login Screen -->
-        <div id="loginScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Login</h1>
-            <input type="email" id="loginEmailInput" placeholder="Email" class="w-full">
-            <input type="password" id="loginPasswordInput" placeholder="Password" class="w-full">
-            <button id="submitLoginButton" class="w-full">Login</button>
-            <button id="backToInitialFromLogin" class="w-full mt-4 bg-gray-600 hover:bg-gray-700">Back</button>
-        </div>
-
-        <!-- Signup Screen -->
-        <div id="signupScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Signup</h1>
-            <input type="email" id="signupEmailInput" placeholder="Email" class="w-full">
-            <input type="password" id="signupPasswordInput" placeholder="Password (min 6 characters)" class="w-full">
-            <input type="text" id="signupUserNameInput" placeholder="Your Name" class="w-full">
-            <input type="text" id="signupSchoolNameInput" placeholder="School Name (Optional)" class="w-full">
-            <button id="submitSignupButton" class="w-full">Create Account</button>
-            <button id="backToInitialFromSignup" class="w-full mt-4 bg-gray-600 hover:bg-gray-700">Back</button>
+            <p class="text-center mb-4">Welcome! Please tell us a bit about yourself.</p>
+            <input type="text" id="userNameInput" placeholder="Your Name" class="w-full">
+            <input type="text" id="schoolNameInput" placeholder="School Name (Optional)" class="w-full">
+            <button id="enterAppButton" class="w-full">Enter App</button>
+            <p class="text-sm text-center text-gray-400 mt-4">Your data will be saved locally on this device.</p>
         </div>
 
         <!-- Privacy Policy Screen -->
@@ -410,6 +337,7 @@
             <ul class="list-disc list-inside text-gray-400 mb-6">
                 <li>Your data may be lost during an update.</li>
                 <li>Your data, such as your name and school, is stored locally in your browser's cache and is not collected, used, or transmitted by Strixel Studios.</li>
+                <li>Your data is stored locally in your browser's cache and cannot be accessed or used by any other device.</li>
                 <li>Updates may not apply to older sessions so please understand.</li>
             </ul>
             <div class="privacy-checkbox-container">
@@ -541,7 +469,6 @@
             <button id="viewPrivacyPolicyButton" class="w-full mt-4">View Privacy Policy</button>
             <button id="patchNotesButton" class="w-full mt-4">Patch Notes & Updates</button>
             <button id="helpButton" class="w-full mt-4">Help</button>
-            <button id="logoutButton" class="w-full mt-4 delete-button">Logout</button>
             <button id="backToMainFromSettingsButton" class="w-full mt-4">Back to Main Menu</button>
         </div>
 
@@ -561,9 +488,8 @@
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Help & Features</h1>
             <h2 class="text-xl font-semibold text-blue-300 mb-2">Getting Started:</h2>
             <ul class="list-disc list-inside text-gray-300 mb-4">
-                <li>On first launch, choose "Signup" to create a new account or "Login" to access an existing one.</li>
-                <li>After signup/login, accept the Privacy Policy.</li>
-                <li>Enter your Name and School (optional) on the welcome screen (for new signups).</li>
+                <li>On first launch, enter your Name and School (optional) to begin. Your data will be saved locally.</li>
+                <li>Accept the Privacy Policy.</li>
             </ul>
 
             <h2 class="text-xl font-semibold text-blue-300 mb-2">Subjects:</h2>
@@ -613,7 +539,6 @@
                 <li>View the Privacy Policy.</li>
                 <li>Access "Patch Notes & Updates" for app version history.</li>
                 <li>Access this "Help" section.</li>
-                <li>**Logout:** Sign out of your account.</li>
             </ul>
 
             <button id="backToSettingsFromHelpButton" class="w-full mt-auto">Back to Settings</button>
@@ -706,7 +631,7 @@
             },
             {
                 version: "1.7",
-                title: "Cloud Sync & Multi-Device Pairing (Previous)",
+                title: "Cloud Sync & Multi-Device Pairing (Removed)",
                 notes: [
                     "Integrated Firebase Firestore for cloud data storage and synchronization.",
                     "Introduced 'Anal ID' for seamless login and pairing across multiple devices.",
@@ -716,17 +641,28 @@
                 ]
             },
             {
-                version: "1.8", // Current version
-                title: "Email/Password Authentication & Streamlined Login",
+                version: "1.8",
+                title: "Email/Password Authentication (Removed)",
                 notes: [
                     "Replaced 'Anal ID' system with traditional email and password authentication for signup and login.",
                     "Simplified initial app flow with dedicated Login and Signup screens.",
                     "Removed device pairing feature for a more direct user experience.",
                     "Updated all relevant help and patch notes to reflect the new authentication method."
                 ]
+            },
+            {
+                version: "1.9", // Current version
+                title: "Return to Local-Only Storage",
+                notes: [
+                    "Removed all cloud synchronization features (Firebase, Anal ID, Email/Password login).",
+                    "All user data (name, school, subjects, sessions) is now stored exclusively in the browser's local storage.",
+                    "Simplified app startup: directly prompts for name/school if not already set.",
+                    "Updated privacy policy to explicitly state data is local and not transferable between devices.",
+                    "Removed 'Pair with New Device' and 'Logout' options."
+                ]
             }
         ];
-        const currentAppVersion = "1.8"; // Define the current version of the app
+        const currentAppVersion = "1.9"; // Define the current version of the app
 
         // Help content for tooltips (now only generic ones, specific to Anal ID removed)
         const helpContent = {
@@ -735,7 +671,7 @@
 
         // Global variables for app state
         let userData = {};
-        let currentScreen = 'initialAuthScreen'; // Start with initial auth screen
+        let currentScreen = 'menuScreen'; // Start with menu screen for local-only
         let subjects = [];
         let sessionTimerInterval = null;
         let currentSubjectStartTime = 0;
@@ -752,27 +688,11 @@
         let currentChart3 = null;
         let currentChart4 = null;
 
-        // Firebase related variables (initialized in the module script)
-        // We will use window.db, window.auth, window.userId directly.
-
         // DOM Elements
-        const initialAuthScreen = document.getElementById('initialAuthScreen');
-        const loginButton = document.getElementById('loginButton');
-        const signupButton = document.getElementById('signupButton');
-
-        const loginScreen = document.getElementById('loginScreen');
-        const loginEmailInput = document.getElementById('loginEmailInput');
-        const loginPasswordInput = document.getElementById('loginPasswordInput');
-        const submitLoginButton = document.getElementById('submitLoginButton');
-        const backToInitialFromLogin = document.getElementById('backToInitialFromLogin');
-
-        const signupScreen = document.getElementById('signupScreen');
-        const signupEmailInput = document.getElementById('signupEmailInput');
-        const signupPasswordInput = document.getElementById('signupPasswordInput');
-        const signupUserNameInput = document.getElementById('signupUserNameInput');
-        const signupSchoolNameInput = document.getElementById('signupSchoolNameInput');
-        const submitSignupButton = document.getElementById('submitSignupButton');
-        const backToInitialFromSignup = document.getElementById('backToInitialFromSignup');
+        const menuScreen = document.getElementById('menuScreen');
+        const userNameInput = document.getElementById('userNameInput');
+        const schoolNameInput = document.getElementById('schoolNameInput');
+        const enterAppButton = document.getElementById('enterAppButton');
 
         const privacyPolicyScreen = document.getElementById('privacyPolicyScreen');
         const privacyAcceptCheckbox = document.getElementById('privacyAcceptCheckbox');
@@ -832,7 +752,6 @@
         const viewPrivacyPolicyButton = document.getElementById('viewPrivacyPolicyButton');
         const patchNotesButton = document.getElementById('patchNotesButton');
         const helpButton = document.getElementById('helpButton');
-        const logoutButton = document.getElementById('logoutButton'); // New Logout button
         const backToMainFromSettingsButton = document.getElementById('backToMainFromSettingsButton');
 
         const patchNotesScreen = document.getElementById('patchNotesScreen');
@@ -883,95 +802,52 @@
             currentScreen = screenId;
         }
 
-        // --- Firebase Data Operations ---
-        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // --- Local Storage Data Operations ---
 
-        async function getUserDocRef(uid) {
-            if (!window.db) { // Explicitly use window.db
-                console.error("Firestore not initialized.");
-                return null;
-            }
-            return doc(window.db, `artifacts/${APP_ID}/users/${uid}`);
-        }
-
-        async function saveUserDataToFirestore() {
-            if (!window.userId) { // Explicitly use window.userId
-                console.error("User ID not available for saving data.");
-                return;
-            }
-            const userDocRef = await getUserDocRef(window.userId); // Use window.userId
-            if (!userDocRef) return;
-
+        function saveDataToLocalStorage() {
             try {
-                // Ensure data is stringified if it contains complex objects/arrays
-                await setDoc(userDocRef, {
-                    name: userData.name,
-                    school: userData.school,
-                    privacyAccepted: userData.privacyAccepted,
-                    lastUpdateVersion: userData.lastUpdateVersion,
-                    subjects: JSON.stringify(subjects), // Store as JSON string
-                    pastSessions: JSON.stringify(pastSessions) // Store as JSON string
-                }, { merge: true }); // Use merge to avoid overwriting other fields
-                console.log("User data saved to Firestore.");
+                localStorage.setItem('analStudyUserData', JSON.stringify(userData));
+                localStorage.setItem('analStudySubjects', JSON.stringify(subjects));
+                localStorage.setItem('analStudyPastSessions', JSON.stringify(pastSessions));
+                console.log("Data saved to Local Storage.");
             } catch (e) {
-                console.error("Error saving user data to Firestore:", e);
-                showMessageBox("Error saving data to cloud. Check console.");
+                console.error("Error saving data to Local Storage:", e);
+                showMessageBox("Error saving data locally. Your browser might be full or in private mode.");
             }
         }
 
-        async function loadUserDataFromFirestore() {
-            if (!window.userId) { // Explicitly use window.userId
-                console.error("User ID not available for loading data.");
-                return;
-            }
-            const userDocRef = await getUserDocRef(window.userId); // Use window.userId
-            if (!userDocRef) return;
-
+        function loadDataFromLocalStorage() {
             try {
-                const docSnap = await getDoc(userDocRef);
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    userData = {
-                        name: data.name || '',
-                        school: data.school || '',
-                        privacyAccepted: data.privacyAccepted || false,
-                        lastUpdateVersion: data.lastUpdateVersion || "0.0"
-                    };
+                const storedUserData = localStorage.getItem('analStudyUserData');
+                const storedSubjects = localStorage.getItem('analStudySubjects');
+                const storedPastSessions = localStorage.getItem('analStudyPastSessions');
 
-                    // Parse data from JSON strings
-                    subjects = data.subjects ? JSON.parse(data.subjects) : ['Maths', 'Science', 'History'];
-                    pastSessions = data.pastSessions ? JSON.parse(data.pastSessions) : [];
+                userData = storedUserData ? JSON.parse(storedUserData) : { name: '', school: '', privacyAccepted: false, lastUpdateVersion: "0.0" };
+                subjects = storedSubjects ? JSON.parse(storedSubjects) : ['Maths', 'Science', 'History'];
+                pastSessions = storedPastSessions ? JSON.parse(storedPastSessions) : [];
 
-                    // Update UI inputs
-                    signupUserNameInput.value = userData.name;
-                    signupSchoolNameInput.value = userData.school;
-                    settingsUserNameInput.value = userData.name;
-                    settingsSchoolNameInput.value = userData.school;
-                    console.log("User data loaded from Firestore.");
-                } else {
-                    console.log("No existing user data in Firestore for this user. Initializing new profile.");
-                    // If no data, initialize with defaults and save
-                    userData = { privacyAccepted: false, lastUpdateVersion: "0.0", name: '', school: '' };
-                    subjects = ['Maths', 'Science', 'History'];
-                    pastSessions = [];
-                    await saveUserDataToFirestore(); // Save initial data
-                }
+                // Update UI inputs
+                userNameInput.value = userData.name;
+                schoolNameInput.value = userData.school;
+                settingsUserNameInput.value = userData.name;
+                settingsSchoolNameInput.value = userData.school;
+                console.log("Data loaded from Local Storage.");
             } catch (e) {
-                console.error("Error loading user data from Firestore:", e);
-                showMessageBox("Error loading data from cloud. Check console.");
-                // Fallback to default local data if Firestore fails
-                userData = { privacyAccepted: false, lastUpdateVersion: "0.0", name: '', school: '' };
+                console.error("Error loading data from Local Storage:", e);
+                showMessageBox("Error loading data locally. Data might be corrupted or missing.");
+                // Fallback to default if load fails
+                userData = { name: '', school: '', privacyAccepted: false, lastUpdateVersion: "0.0" };
                 subjects = ['Maths', 'Science', 'History'];
                 pastSessions = [];
             }
         }
 
-        // Function to save data (now primarily to Firestore)
+        // Function to save data (now exclusively to Local Storage)
         function saveDataWrapper() {
-            saveUserDataToFirestore();
+            saveDataToLocalStorage();
         }
 
-        // --- Core App Logic (mostly unchanged, now uses Firebase data) ---
+        // --- Core App Logic ---
 
         // Render subjects list on Main App Screen
         function renderSubjects() {
@@ -1151,7 +1027,7 @@
                 subjectsStudied: { ...sessionSubjectsDurations }
             };
             pastSessions.push(sessionData);
-            saveDataWrapper(); // Save updated pastSessions to Firestore
+            saveDataWrapper(); // Save updated pastSessions to Local Storage
 
             renderOverview(); // Render current session overview
             showScreen('overviewScreen');
@@ -1560,144 +1436,44 @@
             });
         }
 
-        // --- Authentication/Flow Management ---
+        // --- App Flow Management ---
 
-        // Function to proceed after initial Firebase auth (called by firebaseReady event)
-        async function proceedAfterFirebaseReady() {
-            // Check if Firebase Auth is initialized and a user is already logged in
-            if (window.auth && window.auth.currentUser) {
-                window.userId = window.auth.currentUser.uid;
-                console.log("User already logged in. UID:", window.userId);
-                await loadUserDataFromFirestore(); // Load user data
-                
-                // Then proceed based on privacy and updates
-                if (!userData.privacyAccepted) {
-                    showScreen('privacyPolicyScreen');
-                } else if (userData.lastUpdateVersion < currentAppVersion) {
-                    renderUpdateNotification();
-                    showScreen('updateNotificationScreen');
-                } else {
-                    showScreen('mainAppScreen');
-                    renderSubjects();
-                    populateSubjectSelect();
-                }
-            } else {
-                // No user logged in, show initial auth screen
-                showScreen('initialAuthScreen');
+        // Function to initialize the app state and show the correct screen
+        function initializeAppFlow() {
+            loadDataFromLocalStorage(); // Load data from local storage
+
+            if (!userData.privacyAccepted) {
+                showScreen('privacyPolicyScreen');
+            } else if (userData.lastUpdateVersion < currentAppVersion) {
+                renderUpdateNotification();
+                showScreen('updateNotificationScreen');
+            } else if (userData.name) { // User has name, implies they've gone through initial setup
+                showScreen('mainAppScreen');
+                renderSubjects();
+                populateSubjectSelect();
+            } else { // User data exists but no name, or fresh start
+                showScreen('menuScreen'); // Go to name/school input
             }
         }
 
         // --- Event Listeners ---
 
-        // Initial Auth Screen
-        loginButton.onclick = () => {
-            showScreen('loginScreen');
-            loginEmailInput.value = '';
-            loginPasswordInput.value = '';
-        };
+        // Menu Screen (Initial Entry)
+        enterAppButton.onclick = async () => {
+            userData.name = userNameInput.value.trim();
+            userData.school = schoolNameInput.value.trim();
+            saveDataWrapper(); // Save initial user data
 
-        signupButton.onclick = () => {
-            showScreen('signupScreen');
-            signupEmailInput.value = '';
-            signupPasswordInput.value = '';
-            signupUserNameInput.value = '';
-            signupSchoolNameInput.value = '';
-        };
-
-        // Login Screen
-        backToInitialFromLogin.onclick = () => {
-            showScreen('initialAuthScreen');
-        };
-
-        submitLoginButton.onclick = async () => {
-            const email = loginEmailInput.value.trim();
-            const password = loginPasswordInput.value.trim();
-
-            if (!email || !password) {
-                showMessageBox("Please enter both email and password.");
-                return;
-            }
-
-            try {
-                const userCredential = await signInWithEmailAndPassword(window.auth, email, password);
-                window.userId = userCredential.user.uid;
-                showMessageBox("Login successful!");
-                await loadUserDataFromFirestore(); // Load user data after successful login
-
-                // After login, verify privacy and updates
-                if (!userData.privacyAccepted) {
-                    showScreen('privacyPolicyScreen');
-                } else if (userData.lastUpdateVersion < currentAppVersion) {
-                    renderUpdateNotification();
-                    showScreen('updateNotificationScreen');
-                } else {
-                    showScreen('mainAppScreen');
-                    renderSubjects();
-                    populateSubjectSelect();
-                }
-
-            } catch (error) {
-                console.error("Login error:", error.code, error.message);
-                let errorMessage = "Login failed. Please check your email and password.";
-                if (error.code === 'auth/invalid-email') {
-                    errorMessage = "Invalid email format.";
-                } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                    errorMessage = "Incorrect email or password.";
-                }
-                showMessageBox(errorMessage);
-            }
-        };
-
-        // Signup Screen
-        backToInitialFromSignup.onclick = () => {
-            showScreen('initialAuthScreen');
-        };
-
-        submitSignupButton.onclick = async () => {
-            const email = signupEmailInput.value.trim();
-            const password = signupPasswordInput.value.trim();
-            const name = signupUserNameInput.value.trim();
-            const school = signupSchoolNameInput.value.trim();
-
-            if (!email || !password || !name) {
-                showMessageBox("Please enter email, password, and your name.");
-                return;
-            }
-            if (password.length < 6) {
-                showMessageBox("Password must be at least 6 characters long.");
-                return;
-            }
-
-            try {
-                const userCredential = await createUserWithEmailAndPassword(window.auth, email, password);
-                window.userId = userCredential.user.uid;
-                showMessageBox("Account created successfully!");
-
-                // Initialize new user data and save to Firestore
-                userData = {
-                    name: name,
-                    school: school,
-                    privacyAccepted: false, // Must accept privacy policy after signup
-                    lastUpdateVersion: "0.0" // Will be updated after update notification
-                };
-                subjects = ['Maths', 'Science', 'History']; // Default subjects for new users
-                pastSessions = []; // Empty sessions for new users
-                await saveUserDataToFirestore();
-
-                // After signup, proceed to privacy policy
+            // After initial data is set, proceed to privacy policy
+            if (!userData.privacyAccepted) {
                 showScreen('privacyPolicyScreen');
-
-            } catch (error) {
-                console.error("Signup error:", error.code, error.message);
-                let errorMessage = "Signup failed. Please try again.";
-                if (error.code === 'auth/email-already-in-use') {
-                    errorMessage = "This email is already registered.";
-                } else if (error.code === 'auth/invalid-email') {
-                    errorMessage = "Invalid email format.";
-                } else if (error.code === 'auth/weak-password') {
-                    errorMessage = "Password is too weak. Please choose a stronger one.";
-                }
-                showMessageBox(errorMessage);
+            } else if (userData.lastUpdateVersion < currentAppVersion) {
+                renderUpdateNotification();
+                showScreen('updateNotificationScreen');
+            } else {
+                showScreen('mainAppScreen');
+                renderSubjects();
+                populateSubjectSelect();
             }
         };
 
@@ -1708,7 +1484,7 @@
 
         privacyContinueButton.onclick = () => {
             userData.privacyAccepted = true;
-            saveDataWrapper(); // Save acceptance to Firestore
+            saveDataWrapper(); // Save acceptance to Local Storage
             // After accepting privacy, check for updates
             if (userData.lastUpdateVersion < currentAppVersion) {
                 renderUpdateNotification();
@@ -1723,7 +1499,7 @@
         // Update Notification Screen
         updateContinueButton.onclick = () => {
             userData.lastUpdateVersion = currentAppVersion; // Mark update as seen
-            saveDataWrapper(); // Save update version to Firestore
+            saveDataWrapper(); // Save update version to Local Storage
             showScreen('mainAppScreen');
             renderSubjects();
             populateSubjectSelect();
@@ -1761,7 +1537,7 @@
         saveSettingsButton.onclick = async () => {
             userData.name = settingsUserNameInput.value.trim();
             userData.school = settingsSchoolNameInput.value.trim();
-            await saveDataWrapper(); // Save updated user data to Firestore
+            saveDataWrapper(); // Save updated user data to Local Storage
             showMessageBox("Settings saved!");
             showScreen('mainAppScreen');
         };
@@ -1779,22 +1555,6 @@
 
         helpButton.onclick = () => {
             showScreen('helpScreen');
-        };
-
-        logoutButton.onclick = async () => {
-            try {
-                await signOut(window.auth);
-                showMessageBox("Logged out successfully!");
-                // Reset app state and go back to initial auth screen
-                userData = {};
-                subjects = [];
-                pastSessions = [];
-                window.userId = null;
-                showScreen('initialAuthScreen');
-            } catch (error) {
-                console.error("Logout error:", error);
-                showMessageBox("Error logging out. Please try again.");
-            }
         };
 
         backToMainFromSettingsButton.onclick = () => {
@@ -1861,7 +1621,7 @@
             }
         });
 
-        // Help Icon Click Handler
+        // Help Icon Click Handler (no specific help for Anal ID anymore)
         document.querySelectorAll('.help-icon').forEach(icon => {
             icon.onclick = (event) => {
                 const helpKey = event.target.dataset.help;
@@ -1911,9 +1671,7 @@
         }
 
         // Initialize the app on page load
-        // This will now wait for the 'firebaseReady' event to be dispatched
-        // by the Firebase module script.
-        window.addEventListener('firebaseReady', proceedAfterFirebaseReady);
+        initializeAppFlow();
     </script>
 </body>
 </html>
