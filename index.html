@@ -416,7 +416,7 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <p class="mt-4">Generating a new task...</p>
+                <p class="mt-4">Loading...</p>
             </div>
         </div>
     </div>
@@ -462,11 +462,9 @@
         let tasks = [];
         let goals = [];
         let sessionTimerInterval = null;
-        let currentSessionStartTime = 0;
-        let currentSubjectStartTime = 0;
-        let currentPauseStartTime = 0;
         let totalSessionStudyTime = 0;
         let totalSessionPauseTime = 0;
+        let lastUpdateTime = 0;
         let sessionSubjectsDurations = {};
         let currentSubject = '';
         let isStudying = false;
@@ -634,6 +632,15 @@
 
         const hideModal = (modalId) => {
             document.getElementById(modalId).classList.remove('active');
+        };
+        
+        const showLoadingMessage = (message) => {
+            document.querySelector('#loadingModal p').textContent = message;
+            showModal('loadingModal');
+        };
+
+        const hideLoadingMessage = () => {
+            hideModal('loadingModal');
         };
 
         const renderTasks = () => {
@@ -968,13 +975,17 @@
         };
 
         const updateTimerDisplay = () => {
-            let elapsed;
+            const now = Date.now();
+            const delta = now - lastUpdateTime;
+            lastUpdateTime = now;
+
             if (isStudying) {
-                 elapsed = Math.floor((Date.now() - currentSessionStartTime) / 1000);
+                totalSessionStudyTime += Math.floor(delta / 1000);
             } else {
-                 elapsed = totalSessionStudyTime;
+                totalSessionPauseTime += Math.floor(delta / 1000);
             }
-            timerDisplay.textContent = formatTime(elapsed);
+
+            timerDisplay.textContent = formatTime(totalSessionStudyTime);
         };
 
         const toggleStudyPause = () => {
@@ -991,25 +1002,11 @@
 
             if (!isStudying) {
                 // Start a new session or resume
-                if (currentSessionStartTime === 0) {
-                    currentSessionStartTime = Date.now();
-                }
-                
-                if (currentPauseStartTime !== 0) {
-                    totalSessionPauseTime += Math.floor((Date.now() - currentPauseStartTime) / 1000);
-                    currentPauseStartTime = 0;
-                }
-                
                 isStudying = true;
-                currentSubjectStartTime = Date.now();
-                
+                lastUpdateTime = Date.now();
+
                 clearInterval(sessionTimerInterval);
-                sessionTimerInterval = setInterval(() => {
-                    const elapsed = Math.floor((Date.now() - currentSubjectStartTime) / 1000);
-                    sessionSubjectsDurations[currentSubject] = (sessionSubjectsDurations[currentSubject] || 0) + 1;
-                    totalSessionStudyTime = Math.floor((Date.now() - currentSessionStartTime) / 1000) - totalSessionPauseTime;
-                    updateTimerDisplay();
-                }, 1000);
+                sessionTimerInterval = setInterval(updateTimerDisplay, 1000);
 
                 requestWakeLock();
                 toggleStudyPauseButton.textContent = "Pause Study";
@@ -1019,7 +1016,7 @@
                 // Pause the session
                 isStudying = false;
                 clearInterval(sessionTimerInterval);
-                currentPauseStartTime = Date.now();
+                updateTimerDisplay(); // Final update to capture last second
                 releaseWakeLock();
                 toggleStudyPauseButton.textContent = "Resume Study";
                 currentSubjectDisplay.textContent = 'Paused';
@@ -1027,16 +1024,20 @@
             }
         };
 
-
         const endSession = async () => {
+            if (!isAuthReady) {
+                console.log("Authentication not ready. Cannot end session.");
+                return;
+            }
             clearInterval(sessionTimerInterval);
+            updateTimerDisplay(); // Final update to capture the last moments
+
+            // Update subject-specific duration
             if (isStudying) {
-                totalSessionStudyTime = Math.floor((Date.now() - currentSessionStartTime) / 1000) - totalSessionPauseTime;
-                sessionSubjectsDurations[currentSubject] += Math.floor((Date.now() - currentSubjectStartTime) / 1000);
+                 const currentSubjectDuration = totalSessionStudyTime;
+                 sessionSubjectsDurations[currentSubject] = (sessionSubjectsDurations[currentSubject] || 0) + currentSubjectDuration;
             }
-            if (!isStudying && currentPauseStartTime !== 0) {
-                totalSessionPauseTime += Math.floor((Date.now() - currentPauseStartTime) / 1000);
-            }
+
             releaseWakeLock();
 
             // Show summary modal
@@ -1057,9 +1058,6 @@
             totalSessionPauseTime = 0;
             sessionSubjectsDurations = {};
             currentSubject = '';
-            currentSessionStartTime = 0;
-            currentSubjectStartTime = 0;
-            currentPauseStartTime = 0;
             isStudying = false;
             timerDisplay.textContent = '00:00:00';
             currentSubjectDisplay.textContent = '';
@@ -1081,6 +1079,11 @@
         };
 
         const addSubject = async () => {
+            if (!isAuthReady) {
+                console.log("Authentication not ready. Cannot add subject.");
+                return;
+            }
+
             const newSubject = newSubjectInput.value.trim();
             if (!newSubject) return;
 
@@ -1101,12 +1104,20 @@
         };
 
         const deleteSubject = async (subjectName) => {
+            if (!isAuthReady) {
+                console.log("Authentication not ready. Cannot delete subject.");
+                return;
+            }
             const subjectsDocRef = doc(db, 'artifacts', appId, 'users', userId, 'user-data', 'subjects');
             const updatedSubjects = subjects.filter(s => s !== subjectName);
             await setDoc(subjectsDocRef, { list: updatedSubjects });
         };
 
         const addGoal = async (title) => {
+            if (!isAuthReady) {
+                console.log("Authentication not ready. Cannot add goal.");
+                return;
+            }
             if (!title) return;
             const goalData = {
                 title,
@@ -1118,11 +1129,19 @@
         };
 
         const updateGoalStatus = async (goalId, status) => {
+            if (!isAuthReady) {
+                console.log("Authentication not ready. Cannot update goal status.");
+                return;
+            }
             const goalRef = doc(db, 'artifacts', appId, 'users', userId, 'goals', goalId);
             await updateDoc(goalRef, { status });
         };
 
         const updateTaskStatus = async (taskId, status) => {
+            if (!isAuthReady) {
+                console.log("Authentication not ready. Cannot update task status.");
+                return;
+            }
             const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskId);
             await updateDoc(taskRef, { status, completedAt: Date.now() });
         };
@@ -1146,6 +1165,11 @@
 
         // LLM-powered task generation function
         const generateTaskWithAI = async () => {
+            if (!isAuthReady) {
+                console.log("Authentication not ready. Cannot generate task.");
+                return;
+            }
+
             // Check if there are existing in-progress tasks
             const activeTasks = tasks.filter(t => t.status === 'in-progress' || !t.status);
             if (activeTasks.length > 0) {
@@ -1166,7 +1190,7 @@
                 return;
             }
 
-            showModal('loadingModal');
+            showLoadingMessage("Generating a new task...");
             let newTaskTitle = "Review your notes for today's session.";
 
             try {
@@ -1241,7 +1265,7 @@
                 console.error("Task generation failed, using fallback:", err);
                 newTaskTitle = "Review your notes for today's session.";
             } finally {
-                hideModal('loadingModal');
+                hideLoadingMessage();
             }
 
             const taskData = {
@@ -1265,6 +1289,10 @@
         };
 
         const saveEditSession = async () => {
+            if (!isAuthReady) {
+                console.log("Authentication not ready. Cannot save session.");
+                return;
+            }
             const sessionId = editSessionModal.dataset.sessionId;
             const sessionRef = doc(db, 'artifacts', appId, 'users', userId, 'sessions', sessionId);
             const updatedData = {
@@ -1338,9 +1366,11 @@
         const initializeAppLogic = () => {
             fetchUserData();
             showScreen('mainMenuScreen'); // Start with the main menu screen
+            hideLoadingMessage(); // Hide loading screen after auth is complete
         };
 
         window.onload = () => {
+            showLoadingMessage("Please wait...");
             initFirebase();
         };
 
