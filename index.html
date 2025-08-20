@@ -194,6 +194,11 @@
             right: 0;
             transition: width 0.5s ease-in-out;
         }
+        .chart-container {
+            position: relative;
+            height: 250px; /* Fixed height for charts */
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -341,12 +346,22 @@
 
             <div class="bg-gray-700 p-4 rounded-lg mb-6">
                 <h3 class="text-lg font-semibold mb-2">Study Time Per Subject</h3>
-                <canvas id="subjectBarChart"></canvas>
+                <div id="subjectChartContainer" class="chart-container">
+                    <canvas id="subjectBarChart"></canvas>
+                    <div id="subjectChartNoData" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm hidden">
+                        No subject data yet.
+                    </div>
+                </div>
             </div>
             
             <div class="bg-gray-700 p-4 rounded-lg mb-6">
                 <h3 class="text-lg font-semibold mb-2">Study Sessions Over Time</h3>
-                <canvas id="sessionsLineChart"></canvas>
+                <div id="sessionsChartContainer" class="chart-container">
+                    <canvas id="sessionsLineChart"></canvas>
+                    <div id="sessionsChartNoData" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm hidden">
+                        No session data yet.
+                    </div>
+                </div>
             </div>
 
             <div class="bg-gray-700 p-4 rounded-lg">
@@ -522,6 +537,8 @@
         const closeSummaryButton = document.getElementById('closeSummaryButton');
         const detailedInsights = document.getElementById('detailedInsights');
         const loadingModal = document.getElementById('loadingModal');
+        const subjectChartNoData = document.getElementById('subjectChartNoData');
+        const sessionsChartNoData = document.getElementById('sessionsChartNoData');
 
         // --- Firebase Globals and Setup ---
         const initFirebase = async () => {
@@ -766,114 +783,126 @@
             if (mySubjectBarChart) mySubjectBarChart.destroy();
             if (mySessionsLineChart) mySessionsLineChart.destroy();
 
-            if (sessions.length === 0) {
+            // Check if there is any data to display before rendering charts
+            const hasSubjectData = Object.keys(subjectData).length > 0;
+            const hasSessionData = sessionData.length > 0;
+            
+            if (!hasSubjectData && !hasSessionData) {
                 document.getElementById('analysisMessage').textContent = "No sessions to analyze yet. Start a new study session to see your progress here!";
-                document.getElementById('subjectBarChart').style.display = 'none';
-                document.getElementById('sessionsLineChart').style.display = 'none';
+                subjectChartNoData.classList.remove('hidden');
+                sessionsChartNoData.classList.remove('hidden');
                 detailedInsights.innerHTML = '';
                 return;
             }
-
-            document.getElementById('analysisMessage').textContent = "Your study habits at a glance.";
-            document.getElementById('subjectBarChart').style.display = 'block';
-            document.getElementById('sessionsLineChart').style.display = 'block';
-
-            // Bar Chart for Subjects
-            const barCtx = document.getElementById('subjectBarChart').getContext('2d');
-            mySubjectBarChart = new Chart(barCtx, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(subjectData),
-                    datasets: [{
-                        label: 'Study Time (minutes)',
-                        data: Object.values(subjectData).map(seconds => Math.round(seconds / 60)),
-                        backgroundColor: '#4299e1',
-                        borderRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                            ticks: { color: '#cbd5e0' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#cbd5e0' }
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    label += Math.round(context.raw) + ' minutes';
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Line Chart for Sessions Over Time
-            const lineCtx = document.getElementById('sessionsLineChart').getContext('2d');
             
-            const sessionLabels = sessionData.map(d => new Date(d.timestamp).toLocaleDateString());
-            const sessionTimes = sessionData.map(d => Math.round(d.totalStudyDuration / 60));
-
-            mySessionsLineChart = new Chart(lineCtx, {
-                type: 'line',
-                data: {
-                    labels: sessionLabels,
-                    datasets: [{
-                        label: 'Study Time (minutes)',
-                        data: sessionTimes,
-                        borderColor: '#48bb78',
-                        backgroundColor: 'rgba(72, 187, 120, 0.2)',
-                        tension: 0.3,
-                        pointBackgroundColor: '#48bb78',
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                            ticks: { color: '#cbd5e0' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#cbd5e0' }
-                        }
+            document.getElementById('analysisMessage').textContent = "Your study habits at a glance.";
+            
+            // Render Subject Bar Chart if data exists
+            if (hasSubjectData) {
+                subjectChartNoData.classList.add('hidden');
+                const barCtx = document.getElementById('subjectBarChart').getContext('2d');
+                mySubjectBarChart = new Chart(barCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(subjectData),
+                        datasets: [{
+                            label: 'Study Time (minutes)',
+                            data: Object.values(subjectData).map(seconds => Math.round(seconds / 60)),
+                            backgroundColor: '#4299e1',
+                            borderRadius: 8
+                        }]
                     },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { color: '#cbd5e0' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#cbd5e0' }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        label += Math.round(context.raw) + ' minutes';
+                                        return label;
                                     }
-                                    label += Math.round(context.raw) + ' minutes';
-                                    return label;
                                 }
                             }
                         }
                     }
-                }
-            });
+                });
+            } else {
+                subjectChartNoData.classList.remove('hidden');
+            }
+
+            // Render Sessions Line Chart if data exists
+            if (hasSessionData) {
+                sessionsChartNoData.classList.add('hidden');
+                const lineCtx = document.getElementById('sessionsLineChart').getContext('2d');
+                
+                const sessionLabels = sessionData.map(d => new Date(d.timestamp).toLocaleDateString());
+                const sessionTimes = sessionData.map(d => Math.round(d.totalStudyDuration / 60));
+
+                mySessionsLineChart = new Chart(lineCtx, {
+                    type: 'line',
+                    data: {
+                        labels: sessionLabels,
+                        datasets: [{
+                            label: 'Study Time (minutes)',
+                            data: sessionTimes,
+                            borderColor: '#48bb78',
+                            backgroundColor: 'rgba(72, 187, 120, 0.2)',
+                            tension: 0.3,
+                            pointBackgroundColor: '#48bb78',
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { color: '#cbd5e0' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#cbd5e0' }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        label += Math.round(context.raw) + ' minutes';
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                sessionsChartNoData.classList.remove('hidden');
+            }
 
             // Detailed Textual Insights
             renderDetailedInsights();
