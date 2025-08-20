@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AnalStudy</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -31,19 +30,24 @@
             display: flex;
             flex-direction: column;
             overflow: hidden; /* Hide scrollbars for internal content */
+            position: relative;
         }
         .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             display: none;
-            flex-grow: 1;
+            flex-direction: column;
             padding: 1.5rem;
-            overflow-y: auto; /* Enable scrolling for content within screens */
-            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
         .screen.active {
             display: flex;
-            flex-direction: column;
         }
-        input, button, select {
+        input, button, select, textarea {
             border-radius: 0.75rem; /* Rounded corners for inputs/buttons */
             padding: 0.75rem 1rem;
             margin-bottom: 1rem;
@@ -54,16 +58,7 @@
             outline: none;
             transition: all 0.2s ease-in-out;
         }
-        input[type="date"] {
-            -webkit-appearance: none; /* Remove default date input styling */
-            appearance: none;
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23e2e8f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>');
-            background-repeat: no-repeat;
-            background-position: right 0.75rem center;
-            background-size: 1.25rem;
-            padding-right: 2.5rem; /* Make space for the icon */
-        }
-        input:focus, select:focus {
+        input:focus, select:focus, textarea:focus {
             border-color: #63b3ed; /* Blue focus border */
             box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.5);
         }
@@ -94,19 +89,25 @@
         .delete-button:hover {
             background-color: #c53030;
         }
-        .edit-button { /* New style for edit button */
-            background-color: #48bb78; /* Green */
+        .edit-button {
+            background-color: #48bb78; /* Green for edit */
         }
         .edit-button:hover {
             background-color: #38a169;
         }
-        .end-button {
-            background-color: #e53e3e; /* Red for end session */
+        .give-up-button, .archive-button {
+            background-color: #a0aec0;
         }
-        .end-button:hover {
-            background-color: #c53030;
+        .give-up-button:hover, .archive-button:hover {
+            background-color: #718096;
         }
-        .subject-item {
+        .do-later-button {
+            background-color: #ecc94b;
+        }
+        .do-later-button:hover {
+            background-color: #d69e2e;
+        }
+        .subject-item, .task-item, .goal-item, .session-item, .update-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -115,130 +116,20 @@
             border-radius: 0.75rem;
             margin-bottom: 0.75rem;
         }
-        .subject-item span {
-            flex-grow: 1;
+        .task-item.completed, .goal-item.completed {
+            background-color: #38a169;
+            color: #fff;
         }
-        .subject-item button {
-            margin-left: 1rem;
-            margin-bottom: 0;
-            padding: 0.5rem 0.75rem;
-            font-size: 0.875rem;
+        .task-item.given-up, .task-item.do-later, .goal-item.archived {
+            background-color: #718096;
         }
-        .timer-display {
-            font-size: 3rem;
-            font-weight: 700;
-            text-align: center;
-            margin-top: 2rem;
-            margin-bottom: 2rem;
-            color: #63b3ed; /* Blue for timer */
+        .session-item {
+            cursor: pointer;
+            transition: background-color 0.2s;
         }
-        .message-box {
-            background-color: #2b6cb0; /* Blue for info messages */
-            color: #e2e8f0;
-            padding: 1rem;
-            border-radius: 0.75rem;
-            margin-bottom: 1rem;
-            text-align: center;
+        .session-item:hover {
+            background-color: #5a677b;
         }
-        .progress-bar-container {
-            width: 100%;
-            background-color: #4a5568;
-            border-radius: 0.5rem;
-            height: 1.5rem;
-            margin-bottom: 0.5rem;
-            overflow: hidden;
-        }
-        .progress-bar {
-            height: 100%;
-            background-color: #63b3ed;
-            width: 0%;
-            border-radius: 0.5rem;
-            transition: width 0.5s ease-out;
-        }
-        .idle-bar {
-            background-color: #6b7280; /* Grey for idle time */
-        }
-        .session-card { /* Style for individual session cards in All Sessions Overview */
-            background-color: #4a5568;
-            padding: 1rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        .session-card h3 {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-        .session-card h3 span {
-            flex-grow: 1;
-        }
-        .session-card button {
-            margin-left: 0.5rem;
-            margin-bottom: 0;
-            padding: 0.3rem 0.6rem;
-            font-size: 0.75rem;
-            border-radius: 0.5rem;
-        }
-        .chart-container {
-            position: relative;
-            height: 250px; /* Fixed height for charts */
-            width: 100%;
-            margin-bottom: 1.5rem;
-            background-color: #3d4858;
-            border-radius: 0.75rem;
-            padding: 1rem;
-        }
-        .privacy-checkbox-container {
-            display: flex;
-            align-items: center;
-            margin-top: 1rem;
-            margin-bottom: 1rem;
-        }
-        .privacy-checkbox-container input[type="checkbox"] {
-            margin-right: 0.5rem;
-            margin-bottom: 0; /* Override default margin-bottom for inputs */
-            width: auto; /* Adjust width for checkbox */
-        }
-        /* Update Notification Screen Styling */
-        .update-notification-screen {
-            background-color: #2d3748;
-            border-radius: 1.5rem;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
-            padding: 2rem;
-            text-align: center;
-            animation: fadeIn 0.5s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .update-notification-screen h1 {
-            color: #4299e1;
-            font-size: 2.25rem;
-            margin-bottom: 1.5rem;
-        }
-        .update-notification-screen h2 {
-            color: #63b3ed;
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-        }
-        .update-notification-screen ul {
-            list-style: none; /* Remove default bullet */
-            padding-left: 0;
-            margin-bottom: 1.5rem;
-        }
-        .update-notification-screen ul li {
-            background-color: #4a5568;
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            margin-bottom: 0.5rem;
-            text-align: left;
-            color: #e2e8f0;
-            font-size: 0.95rem;
-        }
-
-        /* Modal Styling */
         .modal {
             position: fixed;
             top: 0;
@@ -246,11 +137,13 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.75);
-            display: flex;
+            display: none;
             justify-content: center;
             align-items: center;
             z-index: 1000;
-            display: none; /* Hidden by default */
+        }
+        .modal.active {
+            display: flex;
         }
         .modal-content {
             background-color: #2d3748;
@@ -266,414 +159,295 @@
             font-size: 1.5rem;
             margin-bottom: 1rem;
         }
-        .modal-content p {
-            color: #e2e8f0;
-            margin-bottom: 1rem;
-        }
-        .modal-content input {
-            background-color: #4a5568;
-            border: 1px solid #4a5568;
-            color: #e2e8f0;
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-            width: 100%;
-            margin-bottom: 1rem;
-        }
-        .modal-content .input-with-button {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-        .modal-content .input-with-button input {
-            margin-bottom: 0; /* Remove bottom margin for input in this group */
-        }
-        .modal-content .input-with-button button {
-            margin-bottom: 0; /* Remove bottom margin for button in this group */
-            padding: 0.75rem 1rem;
-            font-size: 0.9rem;
-            flex-shrink: 0; /* Prevent button from shrinking */
-        }
         .modal-content button {
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-weight: 600;
-            margin: 0 0.5rem;
+            margin-top: 1rem;
+            margin-left: 0.5rem;
+            margin-right: 0.5rem;
         }
-        .modal-content .button-group {
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.5rem;
+        .timer-display {
+            font-size: 4rem;
+            font-weight: 700;
+            text-align: center;
+            margin: 2rem 0;
+            color: #4299e1;
+            letter-spacing: 2px;
+        }
+        .progress-bar-container {
+            width: 100%;
+            height: 24px;
+            background-color: #4a5568;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
             margin-top: 1rem;
         }
-        .modal-content .button-group button {
-            margin-bottom: 0; /* Override default margin-bottom */
+        .progress-bar {
+            height: 100%;
+            background-color: #48bb78; /* Green for study time */
+            transition: width 0.5s ease-in-out;
         }
-        .help-icon {
-            font-size: 0.8em;
-            vertical-align: super;
-            cursor: pointer;
-            color: #63b3ed;
-            margin-left: 0.2em;
+        .idle-bar {
+            height: 100%;
+            background-color: #e53e3e; /* Red for idle time */
+            position: absolute;
+            top: 0;
+            right: 0;
+            transition: width 0.5s ease-in-out;
         }
     </style>
 </head>
 <body>
     <div class="app-container">
-        <!-- Menu Screen (Initial Entry) -->
-        <div id="menuScreen" class="screen active">
+        <!-- Main Menu Screen -->
+        <div id="mainMenuScreen" class="screen active">
             <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">AnalStudy</h1>
-            <p class="text-center mb-4">Welcome! Please tell us a bit about yourself.</p>
-            <input type="text" id="userNameInput" placeholder="Your Name" class="w-full">
-            <input type="text" id="schoolNameInput" placeholder="School Name (Optional)" class="w-full">
-            <button id="enterAppButton" class="w-full">Enter App</button>
-            <p class="text-sm text-center text-gray-400 mt-4">Your data will be saved locally on this device.</p>
+            <p class="text-center text-gray-400 mb-6">Select an option below.</p>
+
+            <button id="startNewSessionButton" class="w-full mb-4">Start New Session</button>
+            <button id="showTasksButton" class="w-full mb-4">View Tasks</button>
+            <button id="showGoalsButton" class="w-full mb-4">Manage Goals</button>
+            <button id="showGraphsButton" class="w-full mb-4">Graphs & Analysis</button>
+            <button id="showSessionsButton" class="w-full mb-4">View Past Sessions</button>
+            <button id="showMoreButton" class="w-full mb-4 bg-gray-600 hover:bg-gray-700">More</button>
         </div>
 
-        <!-- Privacy Policy Screen -->
-        <div id="privacyPolicyScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Privacy Policy</h1>
-            <p class="mb-4 text-gray-300">Please read our privacy policy before continuing:</p>
-            <ul class="list-disc list-inside text-gray-400 mb-6">
-                <li>Your data may be lost during an update.</li>
-                <li>Your data, such as your name and school, is stored locally in your browser's cache and is not collected, used, or transmitted by Strixel Studios.</li>
-                <li>Your data is stored locally in your browser's cache and cannot be accessed or used by any other device.</li>
-                <li>Updates may not apply to older sessions so please understand.</li>
-            </ul>
-            <div class="privacy-checkbox-container">
-                <input type="checkbox" id="privacyAcceptCheckbox">
-                <label for="privacyAcceptCheckbox" class="text-gray-300 text-sm">I understand and agree to the privacy policy.</label>
-            </div>
-            <button id="privacyContinueButton" class="w-full" disabled>Continue</button>
+        <!-- More Screen -->
+        <div id="moreScreen" class="screen">
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">More Options</h2>
+            <button id="showUpdatesButton" class="w-full mb-4">Updates</button>
+            <button id="showSettingsButton" class="w-full mb-4">Settings</button>
+            <button id="showPrivacyButton" class="w-full mb-4">Privacy Policy</button>
+            <button id="showTermsButton" class="w-full mb-4">Terms of Service</button>
+            <button id="backToMenuFromMore" class="mt-4 bg-gray-600 hover:bg-gray-700">Back to Menu</button>
         </div>
-
-        <!-- Update Notification Screen -->
-        <div id="updateNotificationScreen" class="screen update-notification-screen">
-            <h1 class="text-3xl font-bold mb-6">New Update!</h1>
-            <h2 id="updateTitle" class="text-2xl font-semibold mb-4"></h2>
-            <ul id="updateNotes" class="mb-6">
-                <!-- Update notes will be dynamically inserted here -->
-            </ul>
-            <button id="updateContinueButton" class="w-full">Continue to App</button>
-        </div>
-
-        <!-- Main App Screen -->
-        <div id="mainAppScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Subjects</h1>
-            <div id="subjectsList" class="flex flex-col mb-4">
-                <!-- Subjects will be loaded here -->
-            </div>
-            <input type="text" id="newSubjectInput" placeholder="Add New Subject" class="w-full">
-            <button id="addSubjectButton" class="w-full mb-4">Add Subject</button>
-
-            <button id="startStudyingButton" class="w-full mt-auto">Start Studying</button>
-            <button id="viewAllSessionsButton" class="w-full mt-4">View All Sessions</button>
-            <button id="settingsButton" class="w-full mt-4">Settings</button>
-            <p class="text-sm text-right text-gray-400 opacity-70 mt-auto">By Sathvik Harish, Strixel Studios.</p>
-        </div>
-
-        <!-- Study Session Screen -->
-        <div id="studySessionScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Study Session</h1>
-            <select id="subjectSelect" class="w-full mb-4"></select>
-            <p id="pauseInfoText" class="text-sm text-center text-gray-400 mb-4">Pausing counts as idle time and when you do start the timer again it will reset to 0:00</p>
-            <button id="toggleStudyPauseButton" class="w-full">Start Timer</button>
-            <div id="timerDisplay" class="timer-display">00:00:00</div>
-            <div id="currentSubjectDisplay" class="text-center text-xl text-gray-300 mb-4"></div>
-
-            <div class="flex flex-col gap-4 mt-auto">
-                <button id="endSessionButton" class="w-full end-button">End Session</button>
-            </div>
-            <div id="wakeLockMessage" class="message-box mt-4" style="display: none;">
-                Screen will stay on during study.
-            </div>
-        </div>
-
-        <!-- Current Session Overview Screen -->
-        <div id="overviewScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Session Overview</h1>
-            <p id="sessionSummaryText" class="text-center text-lg text-gray-300 mb-6"></p>
-            <p class="text-xl font-semibold mb-4 text-center">What you studied:</p>
-            <div id="overviewSubjects" class="flex flex-col gap-2 mb-6">
-                <!-- Overview subjects and times will be loaded here -->
-            </div>
-            <p class="text-xl font-semibold mb-2 text-center">Session Breakdown:</p>
-            <p id="overviewTotalStudyTime" class="text-center text-lg text-blue-300 mb-1"></p>
-            <p id="overviewTotalIdleTime" class="text-center text-lg text-gray-400 mb-4"></p>
-            <p class="text-xl font-semibold mb-4 text-center">Total Session Duration:</p>
-            <div id="totalSessionDurationDisplay" class="timer-display text-2xl mb-6">00:00:00</div>
-            <button id="backToMainButton" class="w-full mt-auto">Back to Main Menu</button>
-        </div>
-
-        <!-- All Sessions Overview Screen -->
-        <div id="allSessionsOverviewScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">All Past Sessions</h1>
-            <div id="pastSessionsList" class="flex flex-col gap-4 mb-6">
-                <!-- Past sessions will be loaded here -->
-            </div>
-            <button id="viewTotalOverviewButton" class="w-full mt-auto">View Total Overview</button>
-            <button id="backToMainFromAllSessionsButton" class="w-full mt-4">Back to Main Menu</button>
-        </div>
-
-        <!-- Total Overview Screen -->
-        <div id="totalOverviewScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Total Study Analytics</h1>
-            <p id="totalOverviewSummary" class="text-center text-lg text-gray-300 mb-6"></p>
-
-            <div class="flex flex-col sm:flex-row sm:gap-4 mb-6">
-                <div class="flex-1">
-                    <label for="fromDateInput" class="text-gray-300 text-sm mb-1 block">From Date:</label>
-                    <input type="date" id="fromDateInput" class="w-full">
-                </div>
-                <div class="flex-1">
-                    <label for="toDateInput" class="text-gray-300 text-sm mb-1 block">To Date:</label>
-                    <input type="date" id="toDateInput" class="w-full">
+        
+        <!-- Updates Screen -->
+        <div id="updatesScreen" class="screen">
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">Updates</h2>
+            <div id="updatesList" class="flex flex-col gap-2">
+                <div class="update-item flex-col items-start p-4 rounded-lg bg-gray-700">
+                    <h3 class="font-bold text-lg mb-1">Version 1.2.0 - August 20, 2025</h3>
+                    <ul class="list-disc list-inside text-sm text-gray-300">
+                        <li><strong>FIX:</strong> Resolved the "Invalid date" bug on the "Study Sessions Over Time" chart.</li>
+                        <li><strong>NEW:</strong> Implemented AI-powered, context-aware task generation to provide more unique and relevant suggestions.</li>
+                        <li><strong>IMPROVEMENT:</strong> Updated app navigation to be more intuitive.</li>
+                    </ul>
                 </div>
             </div>
-            <button id="filterChartsButton" class="w-full mb-6">Apply Filter</button>
-            <button id="clearFilterButton" class="w-full mb-6 bg-gray-600 hover:bg-gray-700">Clear Filter</button>
-
-
-            <h2 class="text-xl font-semibold mb-2 text-blue-300">Study Time Trend (per session)</h2>
-            <div class="chart-container">
-                <canvas id="studyTimeTrendChart"></canvas>
-            </div>
-
-            <h2 class="text-xl font-semibold mb-2 text-blue-300">Idle Time Trend (per session)</h2>
-            <div class="chart-container">
-                <canvas id="idleTimeTrendChart"></canvas>
-            </div>
-
-            <h2 class="text-xl font-semibold mb-2 text-blue-300">Daily Study Time</h2>
-            <div class="chart-container">
-                <canvas id="dailyStudyChart"></canvas>
-            </div>
-
-            <h2 class="text-xl font-semibold mb-2 text-blue-300">Top Subjects Studied Overall</h2>
-            <div class="chart-container">
-                <canvas id="subjectsOverallChart"></canvas>
-            </div>
-
-            <button id="backToAllSessionsButton" class="w-full mt-auto">Back to All Sessions</button>
+            <button id="backToMoreFromUpdates" class="mt-4 bg-gray-600 hover:bg-gray-700">Back</button>
         </div>
 
         <!-- Settings Screen -->
         <div id="settingsScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Settings</h1>
-            <p class="text-center mb-4">Update your profile information.</p>
-            <label for="settingsUserNameInput" class="text-gray-300 text-sm mb-1 block">Your Name:</label>
-            <input type="text" id="settingsUserNameInput" placeholder="Your Name" class="w-full">
-            <label for="settingsSchoolNameInput" class="text-gray-300 text-sm mb-1 block">School Name (Optional):</label>
-            <input type="text" id="settingsSchoolNameInput" placeholder="School Name (Optional)" class="w-full mb-4">
-            <button id="saveSettingsButton" class="w-full">Save Settings</button>
-            <button id="viewPrivacyPolicyButton" class="w-full mt-4">View Privacy Policy</button>
-            <button id="patchNotesButton" class="w-full mt-4">Patch Notes & Updates</button>
-            <button id="helpButton" class="w-full mt-4">Help</button>
-            <button id="backToMainFromSettingsButton" class="w-full mt-4">Back to Main Menu</button>
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">Settings</h2>
+            <p class="text-gray-400 mb-6">Manage app preferences and data.</p>
+            <button id="manageSubjectsButton" class="w-full mb-4">Manage Subjects</button>
+            <button id="backToMoreFromSettings" class="mt-4 bg-gray-600 hover:bg-gray-700">Back</button>
         </div>
 
-        <!-- Patch Notes Screen -->
-        <div id="patchNotesScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Patch Notes & Updates</h1>
-            <ul id="patchNotesList" class="list-disc list-inside text-gray-300 mb-6">
-                <!-- Patch notes will be dynamically inserted here -->
-            </ul>
-            <p class="text-sm text-gray-400 mt-6">-> If there is an update, this app updates automatically.</p>
-            <p class="text-sm text-gray-400">-> After an update, please note that it might not apply to the sessions done before the update.</p>
-            <button id="backToSettingsFromPatchNotesButton" class="w-full mt-auto">Back to Settings</button>
+        <!-- Add/Manage Subjects Screen -->
+        <div id="addSubjectScreen" class="screen">
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">Manage Subjects</h2>
+            <input type="text" id="newSubjectInput" placeholder="Enter new subject (e.g., Math, Science)">
+            <button id="addSubjectButton" class="w-full">Add Subject</button>
+            <h3 class="text-xl font-semibold mt-4 mb-2">Existing Subjects</h3>
+            <div id="subjectsList" class="flex flex-col gap-2">
+                <!-- Subjects will be rendered here -->
+            </div>
+            <button id="backToSettingsFromSubjects" class="mt-4 bg-gray-600 hover:bg-gray-700">Back to Settings</button>
         </div>
 
-        <!-- Help Screen -->
-        <div id="helpScreen" class="screen">
-            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Help & Features</h1>
-            <h2 class="text-xl font-semibold text-blue-300 mb-2">Getting Started:</h2>
-            <ul class="list-disc list-inside text-gray-300 mb-4">
-                <li>On first launch, enter your Name and School (optional) to begin. Your data will be saved locally.</li>
-                <li>Accept the Privacy Policy.</li>
-            </ul>
-
-            <h2 class="text-xl font-semibold text-blue-300 mb-2">Subjects:</h2>
-            <ul class="list-disc list-inside text-gray-300 mb-4">
-                <li>Add new subjects using the input field and "Add Subject" button.</li>
-                <li>Remove existing subjects using the "Remove" button next to each subject.</li>
-            </ul>
-
-            <h2 class="text-xl font-semibold text-blue-300 mb-2">Study Session:</h2>
-            <ul class="list-disc list-inside text-gray-300 mb-4">
-                <li>Select a subject from the dropdown.</li>
-                <li>Click "Start Timer" to begin studying. The screen will stay on.</li>
-                <li>Click "Pause Study" to temporarily stop the timer. This time counts as idle time.</li>
-                <li>While paused, you can change the subject.</li>
-                <li>Click "Resume Study" to continue studying the selected subject. The timer for the current segment will reset to 0:00.</li>
-                <li>Click "End Session" to finish your study session and view its overview.</li>
-            </ul>
-
-            <h2 class="text-xl font-semibold text-blue-300 mb-2">Session Overview:</h2>
-            <ul class="list-disc list-inside text-gray-300 mb-4">
-                <li>Shows a summary of your most focused subject.</li>
-                <li>Displays time spent on each subject with a progress bar.</li>
-                <li>Breaks down total time into "Active Study Time" and "Idle/Paused Time".</li>
-            </ul>
-
-            <h2 class="text-xl font-semibold text-blue-300 mb-2">All Past Sessions:</h2>
-            <ul class="list-disc list-inside text-gray-300 mb-4">
-                <li>View a list of all your past study sessions.</li>
-                <li>Click "Edit Name" next to a session to give it a custom name.</li>
-                <li>Click "Delete" next to a session to permanently remove it from your history.</li>
-                <li>Click "View Total Overview" for aggregated analytics.</li>
-            </ul>
-
-            <h2 class="text-xl font-semibold text-blue-300 mb-2">Total Study Analytics:</h2>
-            <ul class="list-disc list-inside text-gray-300 mb-4">
-                <li>Provides an overall summary of your study history.</li>
-                <li>**Filter by Date:** Use "From Date" and "To Date" inputs to analyze data within a specific period.</li>
-                <li>**Study Time Trend (per session):** A line graph showing your active study duration for each session over time.</li>
-                <li>**Idle Time Trend (per session):** A line graph showing your idle/paused time for each session over time.</li>
-                <li>**Daily Study Time:** A bar graph showing your total active study time aggregated by day.</li>
-                <li>**Top Subjects Studied Overall:** A bar chart displaying the total time spent on each subject across all sessions.</li>
-            </ul>
-
-            <h2 class="text-xl font-semibold text-blue-300 mb-2">Settings:</h2>
-            <ul class="list-disc list-inside text-gray-300 mb-4">
-                <li>Change your Name and School.</li>
-                <li>View the Privacy Policy.</li>
-                <li>Access "Patch Notes & Updates" for app version history.</li>
-                <li>Access this "Help" section.</li>
-            </ul>
-
-            <button id="backToSettingsFromHelpButton" class="w-full mt-auto">Back to Settings</button>
+        <!-- Privacy Policy Screen -->
+        <div id="privacyScreen" class="screen">
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">Privacy Policy</h2>
+            <div class="text-gray-400 text-sm leading-relaxed mb-6">
+                <p><strong>Effective Date:</strong> August 20, 2025</p>
+                <br>
+                <p>This Privacy Policy describes how your data is collected, used, and protected. We are committed to protecting your privacy. This app collects study session data (subjects, durations) to provide personalized insights and suggestions.</p>
+                <p><strong>Data Collection:</strong> We collect and store your session data securely in a private Firebase Firestore database, accessible only to you. Your user ID is automatically generated and does not contain personal information. We do not collect names, email addresses, or other personal identifiers.</p>
+                <p><strong>Data Use:</strong> The collected data is used exclusively to generate study-related insights, such as suggesting topics you've studied least, and to track your personal goals and tasks. Your data is not shared with any third parties.</p>
+                <p><strong>Data Security:</strong> Your data is stored in a private Firestore database with security rules that prevent unauthorized access. The connection is encrypted.</p>
+                <p><strong>Your Choices:</strong> You can delete your data by deleting the app or requesting data deletion. We provide tools to manage your sessions, tasks, and goals.</p>
+                <p><strong>Changes to This Policy:</strong> This policy may be updated. We will notify you of any changes by updating this page.</p>
+            </div>
+            <button id="backToMoreFromPrivacy" class="mt-4 bg-gray-600 hover:bg-gray-700">Back</button>
         </div>
 
-        <!-- Modals -->
-        <!-- Rename Session Modal -->
-        <div id="renameModal" class="modal">
-            <div class="modal-content">
-                <h2 class="text-xl font-bold mb-4">Rename Session</h2>
-                <input type="text" id="newSessionNameInput" placeholder="Enter new session name">
-                <div class="button-group">
-                    <button id="cancelRenameButton" class="bg-gray-600 hover:bg-gray-700">Cancel</button>
-                    <button id="confirmRenameButton" class="bg-blue-500 hover:bg-blue-600">Rename</button>
+        <!-- Terms of Service Screen -->
+        <div id="termsScreen" class="screen">
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">Terms of Service</h2>
+            <div class="text-gray-400 text-sm leading-relaxed mb-6">
+                <p><strong>Effective Date:</strong> August 20, 2025</p>
+                <br>
+                <p>Welcome to AnalStudy! By using this application, you agree to these Terms of Service. Please read them carefully.</p>
+                <p><strong>1. Use of the App:</strong> The app is provided for your personal, non-commercial use. It is designed to help you track your study sessions, manage tasks, and set goals. You agree to use the app responsibly and not for any unlawful or prohibited purpose.</p>
+                <p><strong>2. Intellectual Property:</strong> All content, features, and functionality of the app are the exclusive property of the app creator and are protected by intellectual property laws. You may not copy, modify, distribute, sell, or lease any part of the app.</p>
+                <p><strong>3. Disclaimer of Warranties:</strong> The app is provided "as is" and "as available" without any warranties of any kind, either express or implied. We do not guarantee that the app will be uninterrupted, error-free, or secure.</p>
+                <p><strong>4. Limitation of Liability:</strong> In no event shall the app creator be liable for any indirect, incidental, special, or consequential damages arising out of or in connection with your use of the app.</p>
+                <p><strong>5. Changes to Terms:</strong> We reserve the right to modify these Terms at any time. We will notify you of changes by updating this page. Your continued use of the app constitutes your acceptance of the new Terms.</p>
+            </div>
+            <button id="backToMoreFromTerms" class="mt-4 bg-gray-600 hover:bg-gray-700">Back</button>
+        </div>
+
+        <!-- Sessions Screen -->
+        <div id="sessionsScreen" class="screen">
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">Past Sessions</h2>
+            <div id="sessionsList" class="flex flex-col gap-2">
+                <!-- Sessions will be rendered here -->
+            </div>
+            <button id="backToMenuFromSessions" class="mt-4 bg-gray-600 hover:bg-gray-700">Back to Menu</button>
+        </div>
+
+        <!-- Start/Stop Session Screen -->
+        <div id="sessionScreen" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Study Session</h1>
+            <select id="subjectSelect" class="w-full mb-4"></select>
+            <p id="pauseInfoText" class="text-sm text-center text-gray-400 mb-4">Pausing counts as idle time.</p>
+            <button id="toggleStudyPauseButton" class="w-full">Start Timer</button>
+            <div id="timerDisplay" class="timer-display">00:00:00</div>
+            <div id="currentSubjectDisplay" class="text-center text-xl text-gray-300 mb-4"></div>
+            <button id="endSessionButton" class="w-full end-button mt-auto">End Session</button>
+            <p class="text-sm text-center text-gray-400 mt-2">Screen will stay on during study.</p>
+        </div>
+
+        <!-- Tasks Screen -->
+        <div id="tasksScreen" class="screen">
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">Your Tasks</h2>
+            <div id="tasksList" class="flex flex-col gap-2">
+                <!-- Tasks will be rendered here -->
+            </div>
+            <div class="mt-4 text-center">
+                <p id="taskStatusMessage" class="text-gray-400 text-sm">Loading tasks...</p>
+                <button id="generateTaskButton" class="mt-4">Generate New Task</button>
+            </div>
+            <button id="backToMenuFromTasks" class="mt-4 bg-gray-600 hover:bg-gray-700">Back to Menu</button>
+        </div>
+
+        <!-- Goals Screen -->
+        <div id="goalsScreen" class="screen">
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">Your Goals</h2>
+            <input type="text" id="newGoalTitleInput" placeholder="Enter new goal title">
+            <button id="addGoalButton" class="w-full">Add Goal</button>
+            <div id="goalsList" class="flex flex-col gap-2">
+                <!-- Goals will be rendered here -->
+            </div>
+            <button id="backToMenuFromGoals" class="mt-4 bg-gray-600 hover:bg-gray-700">Back to Menu</button>
+        </div>
+
+        <!-- Graphs & Analysis Screen -->
+        <div id="graphsScreen" class="screen">
+            <h2 class="text-2xl font-bold mb-4 text-blue-300">Graphs & Analysis</h2>
+            <p id="analysisMessage" class="text-center text-gray-400 mb-6"></p>
+
+            <div class="bg-gray-700 p-4 rounded-lg mb-6">
+                <h3 class="text-lg font-semibold mb-2">Study Time Per Subject</h3>
+                <canvas id="subjectBarChart"></canvas>
+            </div>
+            
+            <div class="bg-gray-700 p-4 rounded-lg mb-6">
+                <h3 class="text-lg font-semibold mb-2">Study Sessions Over Time</h3>
+                <canvas id="sessionsLineChart"></canvas>
+            </div>
+
+            <div class="bg-gray-700 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold mb-2">Detailed Insights</h3>
+                <div id="detailedInsights" class="text-gray-300 text-sm leading-relaxed">
+                    <!-- Text insights will be rendered here -->
                 </div>
+            </div>
+
+            <button id="backToMenuFromGraphs" class="mt-4 bg-gray-600 hover:bg-gray-700">Back to Menu</button>
+        </div>
+
+        <!-- Edit Session Modal -->
+        <div id="editSessionModal" class="modal">
+            <div class="modal-content">
+                <h2 class="text-xl font-bold mb-4">Edit Session Info</h2>
+                <label for="editSessionNameInput" class="text-gray-300 text-sm block text-left mb-1">Session Name:</label>
+                <input type="text" id="editSessionNameInput" class="w-full">
+
+                <label for="editSessionTopicInput" class="text-gray-300 text-sm block text-left mb-1">Main Topic:</label>
+                <input type="text" id="editSessionTopicInput" class="w-full">
+                
+                <label for="editSessionNotesInput" class="text-gray-300 text-sm block text-left mb-1">Notes:</label>
+                <textarea id="editSessionNotesInput" class="w-full" rows="4" placeholder="Add notes about your session..."></textarea>
+                
+                <button id="saveEditSessionButton" class="bg-blue-500 hover:bg-blue-600">Save</button>
+                <button id="cancelEditSessionButton" class="bg-gray-600 hover:bg-gray-700">Cancel</button>
             </div>
         </div>
 
-        <!-- Help Modals (generic, for tooltips) -->
-        <div id="helpModal" class="modal">
+        <!-- Session Summary Modal -->
+        <div id="sessionSummaryModal" class="modal">
             <div class="modal-content">
-                <h2 id="helpModalTitle" class="text-xl font-bold mb-4"></h2>
-                <p id="helpModalContent" class="text-gray-300 mb-4"></p>
-                <div class="button-group justify-center">
-                    <button id="closeHelpModalButton" class="bg-blue-500 hover:bg-blue-600">Got It!</button>
+                <h2 class="text-xl font-bold mb-4">Session Complete!</h2>
+                <p class="text-gray-300 text-lg mb-2">Your Focus Breakdown:</p>
+                <div class="progress-bar-container">
+                    <div id="studyBar" class="progress-bar" style="width: 0%;"></div>
+                    <div id="idleBar" class="idle-bar" style="width: 0%;"></div>
                 </div>
+                <div class="flex justify-between text-sm text-gray-400 mt-2">
+                    <p id="studyTimeText">Study: 0s</p>
+                    <p id="idleTimeText">Idle: 0s</p>
+                </div>
+                <button id="closeSummaryButton" class="bg-blue-500 hover:bg-blue-600">Got It!</button>
+            </div>
+        </div>
+        
+        <!-- Loading Modal -->
+        <div id="loadingModal" class="modal">
+            <div class="modal-content flex flex-col items-center">
+                <svg class="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-4">Generating a new task...</p>
             </div>
         </div>
     </div>
 
-    <script>
-        // Define app versions and patch notes
-        const patchNotesData = [
-            {
-                version: "1.0",
-                title: "Initial Release",
-                notes: [
-                    "Basic study timer, subject management, and session overview."
-                ]
-            },
-            {
-                version: "1.1",
-                title: "Bug Fixes & Enhanced Overview",
-                notes: [
-                    "Fixed timer responsiveness bug.",
-                    "Added total break time and break count to session overview."
-                ]
-            },
-            {
-                version: "1.2",
-                title: "Simplified Timer & Idle Tracking",
-                notes: [
-                    "Removed dedicated break feature, implemented single pause/resume button.",
-                    "Tracked idle time, and updated overview to show active study vs. idle time."
-                ]
-            },
-            {
-                version: "1.3",
-                title: "Session Naming & Total Analytics",
-                notes: [
-                    "Added ability to name past sessions.",
-                    "Introduced 'Total Study Analytics' screen with line graphs for study time trends and bar charts for overall subjects studied."
-                ]
-            },
-            {
-                version: "1.4",
-                title: "Settings Menu, Delete Session & Privacy Policy",
-                notes: [
-                    "Added settings menu for name/school.",
-                    "Added delete session feature.",
-                    "Implemented a mandatory privacy policy on first launch (or if not accepted)."
-                ]
-            },
-            {
-                version: "1.5",
-                title: "Advanced Analytics & Filtering",
-                notes: [
-                    "Added 'Daily Study Time' and 'Idle Time Trend' graphs to total overview.",
-                    "Implemented date range filtering for all total overview charts."
-                ]
-            },
-            {
-                version: "1.6",
-                title: "New Update Notification & Enhanced UX",
-                notes: [
-                    "Implemented a one-time update notification screen on new app versions.",
-                    "Added a 'Delete Session' confirmation modal for better user experience.",
-                    "Updated Patch Notes and Help sections to reflect all changes."
-                ]
-            },
-            {
-                version: "1.7",
-                title: "Cloud Sync & Multi-Device Pairing (Removed)",
-                notes: [
-                    "Integrated Firebase Firestore for cloud data storage and synchronization.",
-                    "Introduced 'Anal ID' for seamless login and pairing across multiple devices.",
-                    "New initial login/signup screen for improved user onboarding.",
-                    "All user data (name, school, subjects, sessions) now saved to the cloud.",
-                    "Updated help and patch notes to include new authentication features."
-                ]
-            },
-            {
-                version: "1.8",
-                title: "Email/Password Authentication (Removed)",
-                notes: [
-                    "Replaced 'Anal ID' system with traditional email and password authentication for signup and login.",
-                    "Simplified initial app flow with dedicated Login and Signup screens.",
-                    "Removed device pairing feature for a more direct user experience.",
-                    "Updated all relevant help and patch notes to reflect the new authentication method."
-                ]
-            },
-            {
-                version: "1.9", // Current version
-                title: "Return to Local-Only Storage",
-                notes: [
-                    "Removed all cloud synchronization features (Firebase, Anal ID, Email/Password login).",
-                    "All user data (name, school, subjects, sessions) is now stored exclusively in the browser's local storage.",
-                    "Simplified app startup: directly prompts for name/school if not already set.",
-                    "Updated privacy policy to explicitly state data is local and not transferable between devices.",
-                    "Removed 'Pair with New Device' and 'Logout' options."
-                ]
-            }
-        ];
-        const currentAppVersion = "1.9"; // Define the current version of the app
+    <script type="module">
+        import {
+            initializeApp
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import {
+            getAuth,
+            signInAnonymously,
+            signInWithCustomToken,
+            onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import {
+            getFirestore,
+            doc,
+            getDoc,
+            addDoc,
+            setDoc,
+            updateDoc,
+            deleteDoc,
+            onSnapshot,
+            collection,
+            query,
+            where,
+            getDocs
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Help content for tooltips (now only generic ones, specific to Anal ID removed)
-        const helpContent = {
-            // No specific help for login-anal-id, anal-id-input, verification, pair-device anymore
-        };
+        // --- Firebase Globals and Setup ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // Global variables for app state
-        let userData = {};
-        let currentScreen = 'menuScreen'; // Start with menu screen for local-only
+        let db;
+        let auth;
+        let userId = null;
+        let isAuthReady = false;
+
+        // --- App State Variables ---
+        let sessions = [];
         let subjects = [];
+        let tasks = [];
+        let goals = [];
         let sessionTimerInterval = null;
+        let currentSessionStartTime = 0;
         let currentSubjectStartTime = 0;
         let currentPauseStartTime = 0;
         let totalSessionStudyTime = 0;
@@ -682,221 +456,278 @@
         let currentSubject = '';
         let isStudying = false;
         let wakeLock = null;
-        let pastSessions = [];
-        let currentChart1 = null;
-        let currentChart2 = null;
-        let currentChart3 = null;
-        let currentChart4 = null;
+        let mySubjectBarChart;
+        let mySessionsLineChart;
 
-        // DOM Elements
-        const menuScreen = document.getElementById('menuScreen');
-        const userNameInput = document.getElementById('userNameInput');
-        const schoolNameInput = document.getElementById('schoolNameInput');
-        const enterAppButton = document.getElementById('enterAppButton');
-
-        const privacyPolicyScreen = document.getElementById('privacyPolicyScreen');
-        const privacyAcceptCheckbox = document.getElementById('privacyAcceptCheckbox');
-        const privacyContinueButton = document.getElementById('privacyContinueButton');
-
-        const updateNotificationScreen = document.getElementById('updateNotificationScreen');
-        const updateTitle = document.getElementById('updateTitle');
-        const updateNotes = document.getElementById('updateNotes');
-        const updateContinueButton = document.getElementById('updateContinueButton');
-
-        const mainAppScreen = document.getElementById('mainAppScreen');
-        const subjectsList = document.getElementById('subjectsList');
-        const newSubjectInput = document.getElementById('newSubjectInput');
-        const addSubjectButton = document.getElementById('addSubjectButton');
-        const startStudyingButton = document.getElementById('startStudyingButton');
-        const viewAllSessionsButton = document.getElementById('viewAllSessionsButton');
-        const settingsButton = document.getElementById('settingsButton');
-
-        const studySessionScreen = document.getElementById('studySessionScreen');
+        // --- DOM Elements ---
+        const mainMenuScreen = document.getElementById('mainMenuScreen');
+        const moreScreen = document.getElementById('moreScreen');
+        const updatesScreen = document.getElementById('updatesScreen');
+        const settingsScreen = document.getElementById('settingsScreen');
+        const addSubjectScreen = document.getElementById('addSubjectScreen');
+        const privacyScreen = document.getElementById('privacyScreen');
+        const termsScreen = document.getElementById('termsScreen');
+        const showTasksButton = document.getElementById('showTasksButton');
+        const showGoalsButton = document.getElementById('showGoalsButton');
+        const showSessionsButton = document.getElementById('showSessionsButton');
+        const showMoreButton = document.getElementById('showMoreButton');
+        const showUpdatesButton = document.getElementById('showUpdatesButton');
+        const showGraphsButton = document.getElementById('showGraphsButton');
+        const showSettingsButton = document.getElementById('showSettingsButton');
+        const manageSubjectsButton = document.getElementById('manageSubjectsButton');
+        const showPrivacyButton = document.getElementById('showPrivacyButton');
+        const showTermsButton = document.getElementById('showTermsButton');
+        const tasksScreen = document.getElementById('tasksScreen');
+        const goalsScreen = document.getElementById('goalsScreen');
+        const sessionsScreen = document.getElementById('sessionsScreen');
+        const graphsScreen = document.getElementById('graphsScreen');
+        const backToMenuFromTasks = document.getElementById('backToMenuFromTasks');
+        const backToMenuFromGoals = document.getElementById('backToMenuFromGoals');
+        const backToMenuFromSessions = document.getElementById('backToMenuFromSessions');
+        const backToMenuFromGraphs = document.getElementById('backToMenuFromGraphs');
+        const backToMenuFromMore = document.getElementById('backToMenuFromMore');
+        const backToMoreFromUpdates = document.getElementById('backToMoreFromUpdates');
+        const backToMoreFromSettings = document.getElementById('backToMoreFromSettings');
+        const backToMoreFromPrivacy = document.getElementById('backToMoreFromPrivacy');
+        const backToMoreFromTerms = document.getElementById('backToMoreFromTerms');
+        const backToSettingsFromSubjects = document.getElementById('backToSettingsFromSubjects');
+        const startNewSessionButton = document.getElementById('startNewSessionButton');
+        const sessionScreen = document.getElementById('sessionScreen');
         const subjectSelect = document.getElementById('subjectSelect');
         const toggleStudyPauseButton = document.getElementById('toggleStudyPauseButton');
         const timerDisplay = document.getElementById('timerDisplay');
         const currentSubjectDisplay = document.getElementById('currentSubjectDisplay');
         const endSessionButton = document.getElementById('endSessionButton');
-        const wakeLockMessage = document.getElementById('wakeLockMessage');
-        const pauseInfoText = document.getElementById('pauseInfoText');
+        const sessionsList = document.getElementById('sessionsList');
+        const tasksList = document.getElementById('tasksList');
+        const goalsList = document.getElementById('goalsList');
+        const newGoalTitleInput = document.getElementById('newGoalTitleInput');
+        const addGoalButton = document.getElementById('addGoalButton');
+        const editSessionModal = document.getElementById('editSessionModal');
+        const editSessionNameInput = document.getElementById('editSessionNameInput');
+        const editSessionTopicInput = document.getElementById('editSessionTopicInput');
+        const editSessionNotesInput = document.getElementById('editSessionNotesInput');
+        const saveEditSessionButton = document.getElementById('saveEditSessionButton');
+        const cancelEditSessionButton = document.getElementById('cancelEditSessionButton');
+        const generateTaskButton = document.getElementById('generateTaskButton');
+        const taskStatusMessage = document.getElementById('taskStatusMessage');
+        const newSubjectInput = document.getElementById('newSubjectInput');
+        const addSubjectButton = document.getElementById('addSubjectButton');
+        const subjectsList = document.getElementById('subjectsList');
+        const sessionSummaryModal = document.getElementById('sessionSummaryModal');
+        const studyBar = document.getElementById('studyBar');
+        const idleBar = document.getElementById('idleBar');
+        const studyTimeText = document.getElementById('studyTimeText');
+        const idleTimeText = document.getElementById('idleTimeText');
+        const closeSummaryButton = document.getElementById('closeSummaryButton');
+        const detailedInsights = document.getElementById('detailedInsights');
+        const loadingModal = document.getElementById('loadingModal');
 
-        const overviewScreen = document.getElementById('overviewScreen');
-        const sessionSummaryText = document.getElementById('sessionSummaryText');
-        const overviewSubjects = document.getElementById('overviewSubjects');
-        const overviewTotalStudyTime = document.getElementById('overviewTotalStudyTime');
-        const overviewTotalIdleTime = document.getElementById('overviewTotalIdleTime');
-        const totalSessionDurationDisplay = document.getElementById('totalSessionDurationDisplay');
-        const backToMainButton = document.getElementById('backToMainButton');
+        // --- Firebase Globals and Setup ---
+        const initFirebase = async () => {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
 
-        const allSessionsOverviewScreen = document.getElementById('allSessionsOverviewScreen');
-        const pastSessionsList = document.getElementById('pastSessionsList');
-        const viewTotalOverviewButton = document.getElementById('viewTotalOverviewButton');
-        const backToMainFromAllSessionsButton = document.getElementById('backToMainFromAllSessionsButton');
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        isAuthReady = true;
+                        console.log("Firebase initialized and user authenticated.");
+                        initializeAppLogic(); // Start app after auth is ready
+                    } else {
+                        console.log("No user is signed in.");
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase initialization or authentication failed:", error);
+            }
+        };
 
-        const totalOverviewScreen = document.getElementById('totalOverviewScreen');
-        const totalOverviewSummary = document.getElementById('totalOverviewSummary');
-        const fromDateInput = document.getElementById('fromDateInput');
-        const toDateInput = document.getElementById('toDateInput');
-        const filterChartsButton = document.getElementById('filterChartsButton');
-        const clearFilterButton = document.getElementById('clearFilterButton');
-        const studyTimeTrendChartCanvas = document.getElementById('studyTimeTrendChart');
-        const idleTimeTrendChartCanvas = document.getElementById('idleTimeTrendChart');
-        const dailyStudyChartCanvas = document.getElementById('dailyStudyChart');
-        const subjectsOverallChartCanvas = document.getElementById('subjectsOverallChart');
-        const backToAllSessionsButton = document.getElementById('backToAllSessionsButton');
+        // --- Data Fetching from Firestore ---
+        const fetchUserData = () => {
+            if (!isAuthReady || !db || !userId) return;
 
-        const settingsScreen = document.getElementById('settingsScreen');
-        const settingsUserNameInput = document.getElementById('settingsUserNameInput');
-        const settingsSchoolNameInput = document.getElementById('settingsSchoolNameInput');
-        const saveSettingsButton = document.getElementById('saveSettingsButton');
-        const viewPrivacyPolicyButton = document.getElementById('viewPrivacyPolicyButton');
-        const patchNotesButton = document.getElementById('patchNotesButton');
-        const helpButton = document.getElementById('helpButton');
-        const backToMainFromSettingsButton = document.getElementById('backToMainFromSettingsButton');
+            // Fetch Sessions
+            const sessionsColRef = collection(db, 'artifacts', appId, 'users', userId, 'sessions');
+            onSnapshot(sessionsColRef, (snapshot) => {
+                sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderSessions();
+                renderTaskStatusMessage();
+                renderGraphs();
+                console.log('Sessions fetched:', sessions);
+            }, (error) => {
+                console.error("Error fetching sessions:", error);
+            });
 
-        const patchNotesScreen = document.getElementById('patchNotesScreen');
-        const patchNotesList = document.getElementById('patchNotesList');
-        const backToSettingsFromPatchNotesButton = document.getElementById('backToSettingsFromPatchNotesButton');
+            // Fetch Subjects
+            const subjectsDocRef = doc(db, 'artifacts', appId, 'users', userId, 'user-data', 'subjects');
+            onSnapshot(subjectsDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    subjects = docSnap.data().list || [];
+                } else {
+                    subjects = [];
+                }
+                renderSubjectSelect();
+                renderSubjectsList();
+                console.log('Subjects fetched:', subjects);
+            }, (error) => {
+                console.error("Error fetching subjects:", error);
+            });
 
-        const helpScreen = document.getElementById('helpScreen');
-        const backToSettingsFromHelpButton = document.getElementById('backToSettingsFromHelpButton');
+            // Fetch Tasks
+            const tasksColRef = collection(db, 'artifacts', appId, 'users', userId, 'tasks');
+            onSnapshot(tasksColRef, (snapshot) => {
+                tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderTasks();
+                console.log('Tasks fetched:', tasks);
+            }, (error) => {
+                console.error("Error fetching tasks:", error);
+            });
 
-        // Modals
-        const renameModal = document.getElementById('renameModal');
-        const newSessionNameInput = document.getElementById('newSessionNameInput');
-        const cancelRenameButton = document.getElementById('cancelRenameButton');
-        const confirmRenameButton = document.getElementById('confirmRenameButton');
-        let sessionToRenameIndex = -1;
+            // Fetch Goals
+            const goalsColRef = collection(db, 'artifacts', appId, 'users', userId, 'goals');
+            onSnapshot(goalsColRef, (snapshot) => {
+                goals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderGoals();
+                console.log('Goals fetched:', goals);
+            }, (error) => {
+                console.error("Error fetching goals:", error);
+            });
+        };
 
-        const helpModal = document.getElementById('helpModal'); // Generic help modal for tooltips
-        const helpModalTitle = document.getElementById('helpModalTitle');
-        const helpModalContent = document.getElementById('helpModalContent');
-        const closeHelpModalButton = document.getElementById('closeHelpModalButton');
-
-
-        // Helper to show a modal
-        function showModal(modalElement) {
-            modalElement.style.display = 'flex';
-        }
-
-        // Helper to hide a modal
-        function hideModal(modalElement) {
-            modalElement.style.display = 'none';
-        }
-
-        // Function to show a temporary message box
-        function showMessageBox(message, duration = 3000) {
-            const messageBox = document.createElement('div');
-            messageBox.className = 'message-box fixed bottom-4 left-1/2 -translate-x-1/2 z-50';
-            messageBox.textContent = message;
-            document.body.appendChild(messageBox);
-            setTimeout(() => messageBox.remove(), duration);
-        }
-
-        // Function to switch screens
-        function showScreen(screenId) {
+        // --- UI Functions ---
+        const showScreen = (screenId) => {
             document.querySelectorAll('.screen').forEach(screen => {
                 screen.classList.remove('active');
             });
             document.getElementById(screenId).classList.add('active');
-            currentScreen = screenId;
-        }
+        };
 
-        // --- Local Storage Data Operations ---
+        const showModal = (modalId) => {
+            document.getElementById(modalId).classList.add('active');
+        };
 
-        function saveDataToLocalStorage() {
-            try {
-                localStorage.setItem('analStudyUserData', JSON.stringify(userData));
-                localStorage.setItem('analStudySubjects', JSON.stringify(subjects));
-                localStorage.setItem('analStudyPastSessions', JSON.stringify(pastSessions));
-                console.log("Data saved to Local Storage.");
-            } catch (e) {
-                console.error("Error saving data to Local Storage:", e);
-                showMessageBox("Error saving data locally. Your browser might be full or in private mode.");
+        const hideModal = (modalId) => {
+            document.getElementById(modalId).classList.remove('active');
+        };
+
+        const renderTasks = () => {
+            tasksList.innerHTML = '';
+            const inProgressTasks = tasks.filter(t => t.status === 'in-progress' || !t.status);
+            const completedTasks = tasks.filter(t => t.status === 'completed');
+            const otherTasks = tasks.filter(t => t.status === 'do-later' || t.status === 'given-up');
+
+            const renderTaskGroup = (groupTitle, groupTasks) => {
+                if (groupTasks.length > 0) {
+                    const groupTitleEl = document.createElement('h3');
+                    groupTitleEl.className = 'text-xl font-semibold mt-4 mb-2';
+                    groupTitleEl.textContent = groupTitle;
+                    tasksList.appendChild(groupTitleEl);
+                }
+                groupTasks.forEach(task => {
+                    const taskItem = document.createElement('div');
+                    taskItem.className = `task-item flex justify-between items-center rounded-lg p-3 mb-2 ${task.status === 'completed' ? 'completed' : task.status === 'given-up' || task.status === 'do-later' ? 'given-up' : ''}`;
+                    
+                    const actionsHtml = `
+                        <div class="flex gap-2">
+                            ${task.status !== 'completed' ? `<button class="complete-task-button bg-green-500 hover:bg-green-600 px-3 py-1 text-sm rounded-md" data-id="${task.id}">Complete</button>` : ''}
+                            ${task.status !== 'given-up' ? `<button class="give-up-task-button give-up-button px-3 py-1 text-sm rounded-md" data-id="${task.id}">Give Up</button>` : ''}
+                            ${task.status !== 'do-later' ? `<button class="do-later-task-button do-later-button px-3 py-1 text-sm rounded-md" data-id="${task.id}">Do Later</button>` : ''}
+                        </div>
+                    `;
+                    
+                    taskItem.innerHTML = `
+                        <span class="flex-1 text-left">${task.title}</span>
+                        ${task.status === 'in-progress' || !task.status ? actionsHtml : ''}
+                    `;
+                    tasksList.appendChild(taskItem);
+                });
+            };
+
+            renderTaskGroup('In Progress', inProgressTasks);
+            renderTaskGroup('Completed', completedTasks);
+            renderTaskGroup('Other', otherTasks);
+
+            // Add event listeners
+            tasksList.querySelectorAll('.complete-task-button').forEach(btn => btn.onclick = (e) => updateTaskStatus(e.target.dataset.id, 'completed'));
+            tasksList.querySelectorAll('.give-up-task-button').forEach(btn => btn.onclick = (e) => updateTaskStatus(e.target.dataset.id, 'given-up'));
+            tasksList.querySelectorAll('.do-later-task-button').forEach(btn => btn.onclick = (e) => updateTaskStatus(e.target.dataset.id, 'do-later'));
+        };
+
+        const renderGoals = () => {
+            goalsList.innerHTML = '';
+            const activeGoals = goals.filter(g => g.status === 'active' || !g.status);
+            const completedGoals = goals.filter(g => g.status === 'completed');
+            const archivedGoals = goals.filter(g => g.status === 'archived');
+            
+            const renderGoalGroup = (groupTitle, groupGoals, statusClass) => {
+                if (groupGoals.length > 0) {
+                    const groupTitleEl = document.createElement('h3');
+                    groupTitleEl.className = 'text-xl font-semibold mt-4 mb-2';
+                    groupTitleEl.textContent = groupTitle;
+                    goalsList.appendChild(groupTitleEl);
+                }
+                groupGoals.forEach(goal => {
+                    const goalItem = document.createElement('div');
+                    goalItem.className = `goal-item flex justify-between items-center rounded-lg p-3 mb-2 ${statusClass}`;
+                    
+                    const actionsHtml = `
+                        <div class="flex gap-2">
+                            ${goal.status !== 'completed' ? `<button class="complete-goal-button bg-green-500 hover:bg-green-600 px-3 py-1 text-sm rounded-md" data-id="${goal.id}">Complete</button>` : ''}
+                            ${goal.status !== 'archived' ? `<button class="archive-goal-button archive-button px-3 py-1 text-sm rounded-md" data-id="${goal.id}">Archive</button>` : ''}
+                        </div>
+                    `;
+                    
+                    goalItem.innerHTML = `
+                        <span class="flex-1 text-left">${goal.title}</span>
+                        ${goal.status === 'active' || !goal.status ? actionsHtml : ''}
+                    `;
+                    goalsList.appendChild(goalItem);
+                });
+            };
+
+            renderGoalGroup('Active Goals', activeGoals, '');
+            renderGoalGroup('Completed Goals', completedGoals, 'completed');
+            renderGoalGroup('Archived Goals', archivedGoals, 'archived');
+            
+            goalsList.querySelectorAll('.complete-goal-button').forEach(btn => btn.onclick = (e) => updateGoalStatus(e.target.dataset.id, 'completed'));
+            goalsList.querySelectorAll('.archive-goal-button').forEach(btn => btn.onclick = (e) => updateGoalStatus(e.target.dataset.id, 'archived'));
+        };
+
+
+        const renderSessions = () => {
+            sessionsList.innerHTML = '';
+            if (sessions.length === 0) {
+                sessionsList.innerHTML = `<p class="text-center text-gray-400">No past sessions yet.</p>`;
+                return;
             }
-        }
-
-        function loadDataFromLocalStorage() {
-            try {
-                const storedUserData = localStorage.getItem('analStudyUserData');
-                const storedSubjects = localStorage.getItem('analStudySubjects');
-                const storedPastSessions = localStorage.getItem('analStudyPastSessions');
-
-                userData = storedUserData ? JSON.parse(storedUserData) : { name: '', school: '', privacyAccepted: false, lastUpdateVersion: "0.0" };
-                subjects = storedSubjects ? JSON.parse(storedSubjects) : ['Maths', 'Science', 'History'];
-                pastSessions = storedPastSessions ? JSON.parse(storedPastSessions) : [];
-
-                // Update UI inputs
-                userNameInput.value = userData.name;
-                schoolNameInput.value = userData.school;
-                settingsUserNameInput.value = userData.name;
-                settingsSchoolNameInput.value = userData.school;
-                console.log("Data loaded from Local Storage.");
-            } catch (e) {
-                console.error("Error loading data from Local Storage:", e);
-                showMessageBox("Error loading data locally. Data might be corrupted or missing.");
-                // Fallback to default if load fails
-                userData = { name: '', school: '', privacyAccepted: false, lastUpdateVersion: "0.0" };
-                subjects = ['Maths', 'Science', 'History'];
-                pastSessions = [];
-            }
-        }
-
-        // Function to save data (now exclusively to Local Storage)
-        function saveDataWrapper() {
-            saveDataToLocalStorage();
-        }
-
-        // --- Core App Logic ---
-
-        // Render subjects list on Main App Screen
-        function renderSubjects() {
-            subjectsList.innerHTML = '';
-            subjects.forEach(subject => {
-                const subjectItem = document.createElement('div');
-                subjectItem.className = 'subject-item';
-                subjectItem.innerHTML = `
-                    <span>${subject}</span>
-                    <button class="delete-button" data-subject="${subject}">Remove</button>
+            sessions.sort((a, b) => b.timestamp - a.timestamp); // Sort by most recent
+            sessions.forEach(session => {
+                const sessionItem = document.createElement('div');
+                sessionItem.className = 'session-item flex justify-between items-center rounded-lg p-3 mb-2';
+                sessionItem.innerHTML = `
+                    <span class="flex-1 text-left">${session.name || 'Untitled Session'}</span>
+                    <button class="edit-session-button edit-button px-3 py-1 text-sm rounded-md" data-id="${session.id}">Edit Info</button>
                 `;
-                subjectsList.appendChild(subjectItem);
+                sessionsList.appendChild(sessionItem);
             });
+            sessionsList.querySelectorAll('.edit-session-button').forEach(btn => btn.onclick = (e) => openEditSessionModal(e.target.dataset.id));
+        };
 
-            document.querySelectorAll('.delete-button').forEach(button => {
-                button.onclick = (event) => {
-                    const subjectToRemove = event.target.dataset.subject;
-                    removeSubject(subjectToRemove);
-                };
-            });
-        }
-
-        // Add a new subject
-        function addSubject() {
-            const newSubject = newSubjectInput.value.trim();
-            if (newSubject && !subjects.includes(newSubject)) {
-                subjects.push(newSubject);
-                newSubjectInput.value = '';
-                saveDataWrapper();
-                renderSubjects();
-                populateSubjectSelect();
-            }
-        }
-
-        // Remove a subject
-        function removeSubject(subjectToRemove) {
-            subjects = subjects.filter(subject => subject !== subjectToRemove);
-            saveDataWrapper();
-            renderSubjects();
-            populateSubjectSelect();
-        }
-
-        // Populate subject dropdown for Study Session Screen
-        function populateSubjectSelect() {
+        const renderSubjectSelect = () => {
             subjectSelect.innerHTML = '';
             if (subjects.length === 0) {
                 const option = document.createElement('option');
                 option.value = '';
-                option.textContent = 'No subjects available. Add some!';
+                option.textContent = 'No subjects. Go to Settings to add one!';
                 subjectSelect.appendChild(option);
                 toggleStudyPauseButton.disabled = true;
                 return;
@@ -908,770 +739,582 @@
                 option.textContent = subject;
                 subjectSelect.appendChild(option);
             });
-        }
+        };
+        
+        const renderSubjectsList = () => {
+            subjectsList.innerHTML = '';
+            if (subjects.length === 0) {
+                subjectsList.innerHTML = `<p class="text-center text-gray-400">No subjects added yet.</p>`;
+                return;
+            }
+            subjects.forEach(subject => {
+                const subjectItem = document.createElement('div');
+                subjectItem.className = 'subject-item flex justify-between items-center rounded-lg p-3 mb-2';
+                subjectItem.innerHTML = `
+                    <span class="flex-1 text-left">${subject}</span>
+                    <button class="delete-subject-button delete-button px-3 py-1 text-sm rounded-md" data-name="${subject}">Delete</button>
+                `;
+                subjectsList.appendChild(subjectItem);
+            });
+            subjectsList.querySelectorAll('.delete-subject-button').forEach(btn => btn.onclick = (e) => deleteSubject(e.target.dataset.name));
+        };
 
-        // Format time for display
-        function formatTime(seconds) {
+        const renderGraphs = () => {
+            const subjectData = aggregateSubjectData();
+            const sessionData = aggregateSessionData();
+            
+            if (mySubjectBarChart) mySubjectBarChart.destroy();
+            if (mySessionsLineChart) mySessionsLineChart.destroy();
+
+            if (sessions.length === 0) {
+                document.getElementById('analysisMessage').textContent = "No sessions to analyze yet. Start a new study session to see your progress here!";
+                document.getElementById('subjectBarChart').style.display = 'none';
+                document.getElementById('sessionsLineChart').style.display = 'none';
+                detailedInsights.innerHTML = '';
+                return;
+            }
+
+            document.getElementById('analysisMessage').textContent = "Your study habits at a glance.";
+            document.getElementById('subjectBarChart').style.display = 'block';
+            document.getElementById('sessionsLineChart').style.display = 'block';
+
+            // Bar Chart for Subjects
+            const barCtx = document.getElementById('subjectBarChart').getContext('2d');
+            mySubjectBarChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(subjectData),
+                    datasets: [{
+                        label: 'Study Time (minutes)',
+                        data: Object.values(subjectData).map(seconds => Math.round(seconds / 60)),
+                        backgroundColor: '#4299e1',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#cbd5e0' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#cbd5e0' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += Math.round(context.raw) + ' minutes';
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Line Chart for Sessions Over Time
+            const lineCtx = document.getElementById('sessionsLineChart').getContext('2d');
+            
+            const sessionLabels = sessionData.map(d => new Date(d.timestamp).toLocaleDateString());
+            const sessionTimes = sessionData.map(d => Math.round(d.totalStudyDuration / 60));
+
+            mySessionsLineChart = new Chart(lineCtx, {
+                type: 'line',
+                data: {
+                    labels: sessionLabels,
+                    datasets: [{
+                        label: 'Study Time (minutes)',
+                        data: sessionTimes,
+                        borderColor: '#48bb78',
+                        backgroundColor: 'rgba(72, 187, 120, 0.2)',
+                        tension: 0.3,
+                        pointBackgroundColor: '#48bb78',
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#cbd5e0' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#cbd5e0' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += Math.round(context.raw) + ' minutes';
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Detailed Textual Insights
+            renderDetailedInsights();
+        };
+
+        const renderDetailedInsights = () => {
+            const totalStudySeconds = sessions.reduce((sum, s) => sum + (s.totalStudyDuration || 0), 0);
+            const totalSessions = sessions.length;
+            const avgSessionTime = totalSessions > 0 ? totalStudySeconds / totalSessions : 0;
+            const formattedAvgTime = formatTime(Math.round(avgSessionTime));
+
+            const subjectData = aggregateSubjectData();
+            const sortedSubjects = Object.entries(subjectData).sort(([, a], [, b]) => b - a);
+            const mostStudied = sortedSubjects.length > 0 ? sortedSubjects[0][0] : 'N/A';
+            const leastStudied = sortedSubjects.length > 0 ? sortedSubjects[sortedSubjects.length - 1][0] : 'N/A';
+
+            detailedInsights.innerHTML = `
+                <p><strong>Total Study Time:</strong> ${formatTime(totalStudySeconds)}</p>
+                <p><strong>Total Sessions:</strong> ${totalSessions}</p>
+                <p><strong>Average Session Duration:</strong> ${formattedAvgTime}</p>
+                <p><strong>Most Studied Subject:</strong> ${mostStudied}</p>
+                <p><strong>Least Studied Subject:</strong> ${leastStudied}</p>
+            `;
+        };
+        
+        const renderTaskStatusMessage = () => {
+            const leastStudied = findLeastStudiedTopic();
+            if (leastStudied) {
+                taskStatusMessage.textContent = `Need a new task? We noticed you've studied "${leastStudied.topic}" the least.`;
+            } else {
+                taskStatusMessage.textContent = "You've got no study history yet. Start a session to generate insights!";
+            }
+        };
+
+
+        // --- Core App Logic Functions ---
+        const formatTime = (seconds) => {
             const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
             const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
             const s = String(seconds % 60).padStart(2, '0');
             return `${h}:${m}:${s}`;
-        }
+        };
 
-        // Request Wake Lock to keep screen on
-        async function requestWakeLock() {
+        const requestWakeLock = async () => {
             if ('wakeLock' in navigator) {
                 try {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    wakeLockMessage.style.display = 'block';
-                    wakeLock.addEventListener('release', () => {
-                        wakeLockMessage.style.display = 'none';
-                    });
+                    console.log('Wake Lock acquired!');
                 } catch (err) {
-                    wakeLockMessage.textContent = 'Screen might turn off during study. Grant permission for screen stay-on.';
-                    wakeLockMessage.style.display = 'block';
+                    // This error is expected in some environments (like an iframe)
+                    // and doesn't prevent the app from working.
+                    // We'll just silently fail to acquire the lock.
                 }
-            } else {
-                wakeLockMessage.textContent = 'Wake Lock API not supported by your browser. Screen might turn off.';
-                wakeLockMessage.style.display = 'block';
             }
-        }
+        };
 
-        // Release Wake Lock
-        function releaseWakeLock() {
+        const releaseWakeLock = () => {
             if (wakeLock !== null) {
                 wakeLock.release();
                 wakeLock = null;
-                wakeLockMessage.style.display = 'none';
+                console.log('Wake Lock released.');
             }
-        }
+        };
 
-        // Function to update the timer display and accumulate study time
-        function updateTimerDisplay() {
-            const elapsed = Math.floor((Date.now() - currentSubjectStartTime) / 1000);
+        const updateTimerDisplay = () => {
+            let elapsed;
+            if (isStudying) {
+                 elapsed = Math.floor((Date.now() - currentSessionStartTime) / 1000);
+            } else {
+                 elapsed = totalSessionStudyTime;
+            }
             timerDisplay.textContent = formatTime(elapsed);
-        }
+        };
 
-        // Toggle Study/Pause functionality
-        function toggleStudyPause() {
-            if (!isStudying) { // Currently paused or fresh start, so start/resume study
-                currentSubject = subjectSelect.value;
-                if (!currentSubject) {
-                    showMessageBox('Please select a subject to start studying.');
-                    return;
+        const toggleStudyPause = () => {
+            currentSubject = subjectSelect.value;
+            if (!currentSubject) {
+                // Use custom modal or a simple message for feedback
+                const message = document.createElement('div');
+                message.textContent = 'Please select a subject to start studying.';
+                message.className = 'text-center text-red-400 font-bold mb-2';
+                sessionScreen.insertBefore(message, subjectSelect.nextSibling);
+                setTimeout(() => message.remove(), 3000);
+                return;
+            }
+
+            if (!isStudying) {
+                // Start a new session or resume
+                if (currentSessionStartTime === 0) {
+                    currentSessionStartTime = Date.now();
                 }
-
-                // If resuming from a pause, calculate and add to totalSessionPauseTime
+                
                 if (currentPauseStartTime !== 0) {
                     totalSessionPauseTime += Math.floor((Date.now() - currentPauseStartTime) / 1000);
-                    currentPauseStartTime = 0; // Reset pause start time
+                    currentPauseStartTime = 0;
                 }
-
-                isStudying = true;
-                currentSubjectStartTime = Date.now(); // Start new study segment
                 
-                // Initialize subject duration if not present
-                if (!sessionSubjectsDurations[currentSubject]) {
-                    sessionSubjectsDurations[currentSubject] = 0;
-                }
-
-                clearInterval(sessionTimerInterval); // Clear any existing interval
+                isStudying = true;
+                currentSubjectStartTime = Date.now();
+                
+                clearInterval(sessionTimerInterval);
                 sessionTimerInterval = setInterval(() => {
-                    sessionSubjectsDurations[currentSubject] += 1; // Accumulate per subject
-                    updateTimerDisplay(); // Update current segment timer
+                    const elapsed = Math.floor((Date.now() - currentSubjectStartTime) / 1000);
+                    sessionSubjectsDurations[currentSubject] = (sessionSubjectsDurations[currentSubject] || 0) + 1;
+                    totalSessionStudyTime = Math.floor((Date.now() - currentSessionStartTime) / 1000) - totalSessionPauseTime;
+                    updateTimerDisplay();
                 }, 1000);
 
                 requestWakeLock();
                 toggleStudyPauseButton.textContent = "Pause Study";
-                subjectSelect.disabled = true; // Disable subject selection while studying
+                subjectSelect.disabled = true;
                 currentSubjectDisplay.textContent = `Studying: ${currentSubject}`;
-
-            } else { // Currently studying, user wants to pause
+            } else {
+                // Pause the session
                 isStudying = false;
-                clearInterval(sessionTimerInterval); // Stop study timer
-
-                // Add time from the just-ended study segment to total study time
-                totalSessionStudyTime += Math.floor((Date.now() - currentSubjectStartTime) / 1000);
-                
-                currentPauseStartTime = Date.now(); // Start tracking pause time
+                clearInterval(sessionTimerInterval);
+                currentPauseStartTime = Date.now();
                 releaseWakeLock();
                 toggleStudyPauseButton.textContent = "Resume Study";
                 currentSubjectDisplay.textContent = 'Paused';
-                subjectSelect.disabled = false; // Enable subject selection when paused
+                subjectSelect.disabled = false;
             }
-        }
+        };
 
-        // End the entire study session
-        function endSession() {
-            clearInterval(sessionTimerInterval); // Stop any active study timer
 
-            // If still studying, add remaining time to total study and subject duration
+        const endSession = async () => {
+            clearInterval(sessionTimerInterval);
             if (isStudying) {
-                totalSessionStudyTime += Math.floor((Date.now() - currentSubjectStartTime) / 1000);
+                totalSessionStudyTime = Math.floor((Date.now() - currentSessionStartTime) / 1000) - totalSessionPauseTime;
                 sessionSubjectsDurations[currentSubject] += Math.floor((Date.now() - currentSubjectStartTime) / 1000);
             }
-            // If paused, add remaining time to total pause duration
             if (!isStudying && currentPauseStartTime !== 0) {
                 totalSessionPauseTime += Math.floor((Date.now() - currentPauseStartTime) / 1000);
             }
-
             releaseWakeLock();
 
-            // Prepare session data for saving
+            // Show summary modal
+            showSessionSummary();
+
             const sessionData = {
-                id: Date.now(), // Unique ID for the session
-                name: `Session on ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`, // Default name
-                date: new Date().toISOString(),
+                name: `Session on ${new Date().toLocaleDateString()}`,
+                timestamp: Date.now(),
                 totalStudyDuration: totalSessionStudyTime,
                 totalPauseDuration: totalSessionPauseTime,
                 subjectsStudied: { ...sessionSubjectsDurations }
             };
-            pastSessions.push(sessionData);
-            saveDataWrapper(); // Save updated pastSessions to Local Storage
 
-            renderOverview(); // Render current session overview
-            showScreen('overviewScreen');
-
-            // Reset session data for next study
+            await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'sessions'), sessionData);
+            
+            // Reset state
             totalSessionStudyTime = 0;
             totalSessionPauseTime = 0;
             sessionSubjectsDurations = {};
             currentSubject = '';
+            currentSessionStartTime = 0;
             currentSubjectStartTime = 0;
             currentPauseStartTime = 0;
             isStudying = false;
-            
-            timerDisplay.textContent = '00:00:00';
-            currentSubjectDisplay.textContent = '';
-            toggleStudyPauseButton.textContent = 'Start Timer'; // Reset button text
-            subjectSelect.disabled = false;
-        }
-
-        // Render current session overview
-        function renderOverview() {
-            overviewSubjects.innerHTML = '';
-            let maxDuration = 0;
-            for (const subject in sessionSubjectsDurations) {
-                if (sessionSubjectsDurations[subject] > maxDuration) {
-                    maxDuration = sessionSubjectsDurations[subject];
-                }
-            }
-
-            let mostStudiedSubject = '';
-            let maxSubjectDuration = 0;
-            for (const subject in sessionSubjectsDurations) {
-                if (sessionSubjectsDurations[subject] > maxSubjectDuration) {
-                    maxSubjectDuration = sessionSubjectsDurations[subject];
-                    mostStudiedSubject = subject;
-                }
-            }
-
-            let summaryText = '';
-            if (Object.keys(sessionSubjectsDurations).length > 0) {
-                summaryText = `Great job! You focused most on ${mostStudiedSubject} today.`;
-            } else {
-                summaryText = 'No subjects were actively studied in this session.';
-            }
-            sessionSummaryText.textContent = summaryText;
-
-            if (Object.keys(sessionSubjectsDurations).length === 0) {
-                overviewSubjects.innerHTML = '<p class="text-center text-gray-400">No subjects recorded for this session.</p>';
-            } else {
-                for (const subject in sessionSubjectsDurations) {
-                    const duration = sessionSubjectsDurations[subject];
-                    const percentage = maxDuration > 0 ? (duration / maxDuration) * 100 : 0;
-
-                    const subjectOverviewItem = document.createElement('div');
-                    subjectOverviewItem.className = 'bg-gray-700 p-3 rounded-xl mb-2';
-                    subjectOverviewItem.innerHTML = `
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="font-semibold">${subject}</span>
-                            <span class="text-sm text-blue-300">${formatTime(duration)}</span>
-                        </div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" style="width: ${percentage}%;"></div>
-                        </div>
-                    `;
-                    overviewSubjects.appendChild(subjectOverviewItem);
-                }
-            }
-            
-            overviewTotalStudyTime.textContent = `Active Study Time: ${formatTime(totalSessionStudyTime)}`;
-            overviewTotalIdleTime.textContent = `Idle/Paused Time: ${formatTime(totalSessionPauseTime)}`;
-            totalSessionDurationDisplay.textContent = formatTime(totalSessionStudyTime + totalSessionPauseTime);
-        }
-
-        // Function to open the rename modal
-        function openRenameModal(sessionId) {
-            sessionToRenameIndex = pastSessions.findIndex(session => session.id === sessionId);
-            if (sessionToRenameIndex !== -1) {
-                newSessionNameInput.value = pastSessions[sessionToRenameIndex].name;
-                showModal(renameModal);
-            }
-        }
-
-        // Function to rename a session
-        function renameSession() {
-            if (sessionToRenameIndex !== -1) {
-                const newName = newSessionNameInput.value.trim();
-                if (newName) {
-                    pastSessions[sessionToRenameIndex].name = newName;
-                    saveDataWrapper();
-                    renderAllSessionsOverview(); // Re-render the list to show the new name
-                    hideModal(renameModal);
-                    sessionToRenameIndex = -1; // Reset
-                } else {
-                    showMessageBox('Session name cannot be empty.', 3000);
-                }
-            }
-        }
-
-        // Function to delete a session
-        function deleteSession(sessionId) {
-            const confirmDeleteModal = document.createElement('div');
-            confirmDeleteModal.id = 'confirmDeleteModal';
-            confirmDeleteModal.className = 'modal'; // Use modal class
-            confirmDeleteModal.innerHTML = `
-                <div class="modal-content">
-                    <h2 class="text-xl font-bold mb-4">Confirm Delete</h2>
-                    <p class="text-gray-300 mb-4">Are you sure you want to delete this session? This action cannot be undone.</p>
-                    <div class="button-group">
-                        <button id="cancelDeleteButton" class="bg-gray-600 hover:bg-gray-700">Cancel</button>
-                        <button id="confirmDeleteButton" class="bg-red-500 hover:bg-red-600">Delete</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(confirmDeleteModal);
-            showModal(confirmDeleteModal); // Show the modal
-
-            document.getElementById('cancelDeleteButton').onclick = () => {
-                hideModal(confirmDeleteModal);
-                confirmDeleteModal.remove();
-            };
-
-            document.getElementById('confirmDeleteButton').onclick = () => {
-                pastSessions = pastSessions.filter(session => session.id !== sessionId);
-                saveDataWrapper();
-                renderAllSessionsOverview(); // Re-render the list
-                hideModal(confirmDeleteModal);
-                confirmDeleteModal.remove();
-            };
-        }
-
-        // Render all past sessions overview
-        function renderAllSessionsOverview() {
-            pastSessionsList.innerHTML = '';
-            if (pastSessions.length === 0) {
-                pastSessionsList.innerHTML = '<p class="text-center text-gray-400">No past sessions recorded yet.</p>';
-                return;
-            }
-
-            const sortedSessions = [...pastSessions].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            sortedSessions.forEach((session) => {
-                const sessionDate = new Date(session.date).toLocaleString();
-                const subjectsSummary = Object.keys(session.subjectsStudied).join(', ') || 'None';
-                const totalStudyFormatted = formatTime(session.totalStudyDuration);
-                const totalPauseFormatted = formatTime(session.totalPauseDuration);
-                const totalSessionOverallDuration = formatTime(session.totalStudyDuration + session.totalPauseDuration);
-
-                const sessionItem = document.createElement('div');
-                sessionItem.className = 'session-card';
-                sessionItem.innerHTML = `
-                    <h3>
-                        <span class="font-semibold text-blue-300">${session.name}</span>
-                        <button class="edit-button" data-session-id="${session.id}">Edit Name</button>
-                        <button class="delete-button" data-session-id="${session.id}">Delete</button>
-                    </h3>
-                    <p class="text-sm text-gray-300 mb-1">Date: ${sessionDate}</p>
-                    <p class="text-sm text-gray-300 mb-1">Studied: ${subjectsSummary}</p>
-                    <p class="text-sm text-gray-300 mb-1">Active Study Time: <span class="font-medium">${totalStudyFormatted}</span></p>
-                    <p class="text-sm text-gray-300 mb-1">Idle/Paused Time: <span class="font-medium">${totalPauseFormatted}</span></p>
-                    <p class="text-sm text-gray-300">Total Session Duration: <span class="font-medium">${totalSessionOverallDuration}</span></p>
-                `;
-                pastSessionsList.appendChild(sessionItem);
-            });
-
-            // Add event listeners for edit and delete buttons
-            document.querySelectorAll('.edit-button').forEach(button => {
-                button.onclick = (event) => {
-                    const sessionId = parseInt(event.target.dataset.sessionId);
-                    openRenameModal(sessionId);
-                };
-            });
-            document.querySelectorAll('.delete-button').forEach(button => {
-                button.onclick = (event) => {
-                    const sessionId = parseInt(event.target.dataset.sessionId);
-                    deleteSession(sessionId);
-                };
-            });
-        }
-
-        // Render total overview analytics
-        function renderTotalOverview() {
-            let filteredSessions = pastSessions;
-
-            const fromDate = fromDateInput.value ? new Date(fromDateInput.value) : null;
-            const toDate = toDateInput.value ? new Date(toDateInput.value) : null;
-
-            if (fromDate || toDate) {
-                filteredSessions = pastSessions.filter(session => {
-                    const sessionDate = new Date(session.date);
-                    const sessionDateOnly = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate()); // Ignore time for comparison
-                    
-                    let isAfterFrom = true;
-                    if (fromDate) {
-                        const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
-                        isAfterFrom = sessionDateOnly >= fromDateOnly;
-                    }
-
-                    let isBeforeTo = true;
-                    if (toDate) {
-                        const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
-                        isBeforeTo = sessionDateOnly <= toDateOnly;
-                    }
-                    return isAfterFrom && isBeforeTo;
-                });
-            }
-
-            let overallTotalStudy = 0;
-            let overallTotalPause = 0;
-            let overallSubjectsData = {}; // {subject: totalDuration}
-            const sessionLabels = []; // Use session names for labels
-            const sessionStudyDurations = [];
-            const sessionIdleDurations = [];
-            const dailyStudyData = {}; // { 'YYYY-MM-DD': totalSeconds }
-
-            filteredSessions.forEach(session => {
-                overallTotalStudy += session.totalStudyDuration;
-                overallTotalPause += session.totalPauseDuration;
-                
-                sessionLabels.push(session.name || new Date(session.date).toLocaleDateString());
-                sessionStudyDurations.push(session.totalStudyDuration / 60); // Convert to minutes for chart
-                sessionIdleDurations.push(session.totalPauseDuration / 60); // Convert to minutes for chart
-
-                const sessionDateKey = new Date(session.date).toISOString().split('T')[0]; // YYYY-MM-DD
-                if (dailyStudyData[sessionDateKey]) {
-                    dailyStudyData[sessionDateKey] += session.totalStudyDuration;
-                } else {
-                    dailyStudyData[sessionDateKey] = session.totalStudyDuration;
-                }
-
-                for (const subject in session.subjectsStudied) {
-                    if (overallSubjectsData[subject]) {
-                        overallSubjectsData[subject] += session.subjectsStudied[subject];
-                    } else {
-                        overallSubjectsData[subject] = session.subjectsStudied[subject];
-                    }
-                }
-            });
-
-            const totalSessionsCount = filteredSessions.length;
-            const avgStudyPerSession = totalSessionsCount > 0 ? overallTotalStudy / totalSessionsCount : 0;
-
-            totalOverviewSummary.textContent = `You've completed ${totalSessionsCount} sessions (filtered), with a total active study time of ${formatTime(overallTotalStudy)} and total idle time of ${formatTime(overallTotalPause)}. Your average active study time per session is ${formatTime(avgStudyPerSession)}.`;
-
-            // Destroy existing charts if they exist
-            if (currentChart1) currentChart1.destroy();
-            if (currentChart2) currentChart2.destroy();
-            if (currentChart3) currentChart3.destroy();
-            if (currentChart4) currentChart4.destroy();
-
-            // Chart 1: Study Time Trend per Session
-            const ctx1 = studyTimeTrendChartCanvas.getContext('2d');
-            currentChart1 = new Chart(ctx1, {
-                type: 'line',
-                data: {
-                    labels: sessionLabels,
-                    datasets: [{
-                        label: 'Active Study Time (minutes)',
-                        data: sessionStudyDurations.map(d => Math.round(d)),
-                        borderColor: '#63b3ed',
-                        backgroundColor: 'rgba(99, 179, 237, 0.2)',
-                        fill: true,
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: 'Minutes', color: '#e2e8f0' },
-                            ticks: { color: '#e2e8f0' },
-                            grid: { color: '#4a5568' }
-                        },
-                        x: {
-                            title: { display: true, text: 'Session Name / Date', color: '#e2e8f0' },
-                            ticks: { color: '#e2e8f0' },
-                            grid: { color: '#4a5568' }
-                        }
-                    },
-                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
-                }
-            });
-
-            // Chart 3: Idle Time Trend (per session)
-            const ctx3 = idleTimeTrendChartCanvas.getContext('2d');
-            currentChart3 = new Chart(ctx3, {
-                type: 'line',
-                data: {
-                    labels: sessionLabels,
-                    datasets: [{
-                        label: 'Idle/Paused Time (minutes)',
-                        data: sessionIdleDurations.map(d => Math.round(d)),
-                        borderColor: '#6b7280', // Grey color for idle
-                        backgroundColor: 'rgba(107, 114, 128, 0.2)',
-                        fill: true,
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: 'Minutes', color: '#e2e8f0' },
-                            ticks: { color: '#e2e8f0' },
-                            grid: { color: '#4a5568' }
-                        },
-                        x: {
-                            title: { display: true, text: 'Session Name / Date', color: '#e2e8f0' },
-                            ticks: { color: '#e2e8f0' },
-                            grid: { color: '#4a5568' }
-                        }
-                    },
-                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
-                }
-            });
-
-            // Chart 4: Daily Study Time (Bar Chart)
-            const dailyLabels = Object.keys(dailyStudyData).sort();
-            const dailyDurations = dailyLabels.map(date => Math.round(dailyStudyData[date] / 60)); // Convert to minutes
-
-            const ctx4 = dailyStudyChartCanvas.getContext('2d');
-            currentChart4 = new Chart(ctx4, {
-                type: 'bar',
-                data: {
-                    labels: dailyLabels,
-                    datasets: [{
-                        label: 'Daily Active Study Time (minutes)',
-                        data: dailyDurations,
-                        backgroundColor: 'rgba(72, 187, 120, 0.7)', // Green for daily study
-                        borderColor: '#48bb78',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: 'Minutes', color: '#e2e8f0' },
-                            ticks: { color: '#e2e8f0' },
-                            grid: { color: '#4a5568' }
-                        },
-                        x: {
-                            title: { display: true, text: 'Date', color: '#e2e8f0' },
-                            ticks: { color: '#e2e8f0' },
-                            grid: { color: '#4a5568' }
-                        }
-                    },
-                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
-                }
-            });
-
-
-            // Chart 2: Top Subjects Studied Overall (using filtered data)
-            const subjectLabels = Object.keys(overallSubjectsData);
-            const subjectDurations = Object.values(overallSubjectsData).map(d => Math.round(d / 60)); // Convert to minutes
-
-            const ctx2 = subjectsOverallChartCanvas.getContext('2d');
-            currentChart2 = new Chart(ctx2, {
-                type: 'bar',
-                data: {
-                    labels: subjectLabels,
-                    datasets: [{
-                        label: 'Total Time Studied (minutes)',
-                        data: subjectDurations,
-                        backgroundColor: [
-                            'rgba(99, 179, 237, 0.7)', // Blue
-                            'rgba(72, 187, 120, 0.7)', // Green
-                            'rgba(246, 173, 85, 0.7)',  // Orange
-                            'rgba(237, 100, 166, 0.7)', // Pink
-                            'rgba(159, 122, 233, 0.7)', // Purple
-                            'rgba(56, 178, 172, 0.7)'  // Teal
-                        ],
-                        borderColor: [
-                            '#63b3ed',
-                            '#48bb78',
-                            '#f6ad55',
-                            '#ed64a6',
-                            '#9f7aea',
-                            '#38b2ac'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: 'Minutes', color: '#e2e8f0' },
-                            ticks: { color: '#e2e8f0' },
-                            grid: { color: '#4a5568' }
-                        },
-                        x: {
-                            ticks: { color: '#e2e8f0' },
-                            grid: { color: '#4a5568' }
-                        }
-                    },
-                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
-                }
-            });
-        }
-
-        // --- App Flow Management ---
-
-        // Function to initialize the app state and show the correct screen
-        function initializeAppFlow() {
-            loadDataFromLocalStorage(); // Load data from local storage
-
-            if (!userData.privacyAccepted) {
-                showScreen('privacyPolicyScreen');
-            } else if (userData.lastUpdateVersion < currentAppVersion) {
-                renderUpdateNotification();
-                showScreen('updateNotificationScreen');
-            } else if (userData.name) { // User has name, implies they've gone through initial setup
-                showScreen('mainAppScreen');
-                renderSubjects();
-                populateSubjectSelect();
-            } else { // User data exists but no name, or fresh start
-                showScreen('menuScreen'); // Go to name/school input
-            }
-        }
-
-        // --- Event Listeners ---
-
-        // Menu Screen (Initial Entry)
-        enterAppButton.onclick = async () => {
-            userData.name = userNameInput.value.trim();
-            userData.school = schoolNameInput.value.trim();
-            saveDataWrapper(); // Save initial user data
-
-            // After initial data is set, proceed to privacy policy
-            if (!userData.privacyAccepted) {
-                showScreen('privacyPolicyScreen');
-            } else if (userData.lastUpdateVersion < currentAppVersion) {
-                renderUpdateNotification();
-                showScreen('updateNotificationScreen');
-            } else {
-                showScreen('mainAppScreen');
-                renderSubjects();
-                populateSubjectSelect();
-            }
-        };
-
-        // Privacy Policy Screen
-        privacyAcceptCheckbox.onchange = () => {
-            privacyContinueButton.disabled = !privacyAcceptCheckbox.checked;
-        };
-
-        privacyContinueButton.onclick = () => {
-            userData.privacyAccepted = true;
-            saveDataWrapper(); // Save acceptance to Local Storage
-            // After accepting privacy, check for updates
-            if (userData.lastUpdateVersion < currentAppVersion) {
-                renderUpdateNotification();
-                showScreen('updateNotificationScreen');
-            } else {
-                showScreen('mainAppScreen');
-                renderSubjects();
-                populateSubjectSelect();
-            }
-        };
-
-        // Update Notification Screen
-        updateContinueButton.onclick = () => {
-            userData.lastUpdateVersion = currentAppVersion; // Mark update as seen
-            saveDataWrapper(); // Save update version to Local Storage
-            showScreen('mainAppScreen');
-            renderSubjects();
-            populateSubjectSelect();
-        };
-
-        // Main App Screen
-        addSubjectButton.onclick = addSubject;
-        newSubjectInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                addSubject();
-            }
-        });
-
-        startStudyingButton.onclick = () => {
-            showScreen('studySessionScreen');
-            populateSubjectSelect();
             timerDisplay.textContent = '00:00:00';
             currentSubjectDisplay.textContent = '';
             toggleStudyPauseButton.textContent = 'Start Timer';
             subjectSelect.disabled = false;
         };
 
-        viewAllSessionsButton.onclick = () => {
-            renderAllSessionsOverview();
-            showScreen('allSessionsOverviewScreen');
+        const showSessionSummary = () => {
+            const totalDuration = totalSessionStudyTime + totalSessionPauseTime;
+            const studyPercentage = totalDuration > 0 ? (totalSessionStudyTime / totalDuration) * 100 : 0;
+            const idlePercentage = totalDuration > 0 ? (totalSessionPauseTime / totalDuration) * 100 : 0;
+
+            studyBar.style.width = `${studyPercentage}%`;
+            idleBar.style.width = `${idlePercentage}%`;
+            studyTimeText.textContent = `Study: ${formatTime(totalSessionStudyTime)}`;
+            idleTimeText.textContent = `Idle: ${formatTime(totalSessionPauseTime)}`;
+
+            showModal('sessionSummaryModal');
         };
 
-        settingsButton.onclick = () => {
-            settingsUserNameInput.value = userData.name || '';
-            settingsSchoolNameInput.value = userData.school || '';
-            showScreen('settingsScreen');
+        const addSubject = async () => {
+            const newSubject = newSubjectInput.value.trim();
+            if (!newSubject) return;
+
+            const subjectsDocRef = doc(db, 'artifacts', appId, 'users', userId, 'user-data', 'subjects');
+            
+            const existingSubjects = subjects || [];
+            if (!existingSubjects.includes(newSubject)) {
+                existingSubjects.push(newSubject);
+                await setDoc(subjectsDocRef, { list: existingSubjects }, { merge: true });
+                newSubjectInput.value = '';
+            } else {
+                const message = document.createElement('div');
+                message.textContent = 'This subject already exists!';
+                message.className = 'text-center text-red-400 font-bold mb-2';
+                addSubjectScreen.insertBefore(message, newSubjectInput.nextSibling);
+                setTimeout(() => message.remove(), 3000);
+            }
         };
 
-        // Settings Screen
-        saveSettingsButton.onclick = async () => {
-            userData.name = settingsUserNameInput.value.trim();
-            userData.school = settingsSchoolNameInput.value.trim();
-            saveDataWrapper(); // Save updated user data to Local Storage
-            showMessageBox("Settings saved!");
-            showScreen('mainAppScreen');
+        const deleteSubject = async (subjectName) => {
+            const subjectsDocRef = doc(db, 'artifacts', appId, 'users', userId, 'user-data', 'subjects');
+            const updatedSubjects = subjects.filter(s => s !== subjectName);
+            await setDoc(subjectsDocRef, { list: updatedSubjects });
         };
 
-        viewPrivacyPolicyButton.onclick = () => {
-            showScreen('privacyPolicyScreen');
-            privacyAcceptCheckbox.checked = userData.privacyAccepted || false;
-            privacyContinueButton.disabled = !privacyAcceptCheckbox.checked;
+        const addGoal = async (title) => {
+            if (!title) return;
+            const goalData = {
+                title,
+                status: 'active',
+                createdAt: Date.now()
+            };
+            await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'goals'), goalData);
+            newGoalTitleInput.value = '';
         };
 
-        patchNotesButton.onclick = () => {
-            renderPatchNotes();
-            showScreen('patchNotesScreen');
+        const updateGoalStatus = async (goalId, status) => {
+            const goalRef = doc(db, 'artifacts', appId, 'users', userId, 'goals', goalId);
+            await updateDoc(goalRef, { status });
         };
 
-        helpButton.onclick = () => {
-            showScreen('helpScreen');
+        const updateTaskStatus = async (taskId, status) => {
+            const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskId);
+            await updateDoc(taskRef, { status, completedAt: Date.now() });
         };
 
-        backToMainFromSettingsButton.onclick = () => {
-            showScreen('mainAppScreen');
+        const findLeastStudiedTopic = () => {
+            if (sessions.length === 0) {
+                return null;
+            }
+            
+            const allSubjects = aggregateSubjectData();
+            if (Object.keys(allSubjects).length === 0) {
+                return null; // No topics have been studied yet
+            }
+
+            const sortedSubjects = Object.entries(allSubjects).sort((a, b) => a[1] - b[1]);
+            return {
+                topic: sortedSubjects[0][0],
+                time: sortedSubjects[0][1]
+            };
         };
 
-        // Patch Notes Screen
-        backToSettingsFromPatchNotesButton.onclick = () => {
-            showScreen('settingsScreen');
+        // LLM-powered task generation function
+        const generateTaskWithAI = async () => {
+            // Check if there are existing in-progress tasks
+            const activeTasks = tasks.filter(t => t.status === 'in-progress' || !t.status);
+            if (activeTasks.length > 0) {
+                const message = document.createElement('div');
+                message.textContent = 'You already have an in-progress task. Please complete or give it up first.';
+                message.className = 'text-center text-red-400 font-bold mb-2';
+                tasksScreen.insertBefore(message, tasksList.nextSibling);
+                setTimeout(() => message.remove(), 5000);
+                return;
+            }
+
+            if (subjects.length === 0) {
+                const message = document.createElement('div');
+                message.textContent = 'Please add at least one subject to generate a task.';
+                message.className = 'text-center text-red-400 font-bold mb-2';
+                tasksScreen.insertBefore(message, tasksList.nextSibling);
+                setTimeout(() => message.remove(), 5000);
+                return;
+            }
+
+            showModal('loadingModal');
+            let newTaskTitle = "Review your notes for today's session.";
+
+            try {
+                const subjectData = aggregateSubjectData();
+                const sessionData = aggregateSessionData();
+                
+                const mostStudied = Object.entries(subjectData).sort(([, a], [, b]) => b - a)[0];
+                const leastStudied = Object.entries(subjectData).sort(([, a], [, b]) => a - b)[0];
+                const totalStudyTime = sessions.reduce((sum, s) => sum + (s.totalStudyDuration || 0), 0);
+                const avgSessionDuration = totalStudyTime > 0 ? totalStudyTime / sessions.length : 0;
+
+                const prompt = `Based on the user's study data, generate a single, compelling, and actionable study task. The task should be presented in a friendly, encouraging tone. Do not use markdown formatting like headings or lists, just a single, concise sentence.
+                User's Subjects: ${subjects.join(', ')}
+                Study History: ${JSON.stringify(subjectData)}
+                Total Study Time: ${formatTime(totalStudyTime)}
+                Average Session Duration: ${formatTime(avgSessionDuration)}
+                Most Studied Subject: ${mostStudied ? mostStudied[0] : 'None'}
+                Least Studied Subject: ${leastStudied ? leastStudied[0] : 'None'}
+
+                Example tasks based on this data could be:
+                - "Focus on your least studied subject, ${leastStudied ? leastStudied[0] : ''}, for at least 15 minutes."
+                - "Review your most studied subject, ${mostStudied ? mostStudied[0] : ''}, by trying to recall three key concepts without looking at your notes."
+                - "Try a short, 20-minute burst of focused work on a new topic within one of your subjects."
+                - "Summarize a key topic from your last session in a single paragraph."
+
+                Generate a new, unique task title now.`;
+
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = "" 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                let retries = 0;
+                const maxRetries = 3;
+                let response;
+
+                while (retries < maxRetries) {
+                    try {
+                        response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (response.status === 429) {
+                            retries++;
+                            const delay = Math.pow(2, retries) * 1000 + Math.random() * 1000;
+                            await new Promise(res => setTimeout(res, delay));
+                            continue;
+                        }
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        const result = await response.json();
+                        if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                            newTaskTitle = result.candidates[0].content.parts[0].text;
+                            break; // Success, exit loop
+                        } else {
+                            throw new Error("Invalid API response format");
+                        }
+                    } catch (error) {
+                        console.error("API call failed:", error);
+                        retries++;
+                        const delay = Math.pow(2, retries) * 1000 + Math.random() * 1000;
+                        await new Promise(res => setTimeout(res, delay));
+                    }
+                }
+            } catch (err) {
+                console.error("Task generation failed, using fallback:", err);
+                newTaskTitle = "Review your notes for today's session.";
+            } finally {
+                hideModal('loadingModal');
+            }
+
+            const taskData = {
+                title: newTaskTitle,
+                status: 'in-progress',
+                createdAt: Date.now()
+            };
+            await addDoc(collection(db, 'artifacts', appId, 'users', userId, 'tasks'), taskData);
         };
 
-        // Help Screen
-        backToSettingsFromHelpButton.onclick = () => {
-            showScreen('settingsScreen');
+        const openEditSessionModal = (sessionId) => {
+            const session = sessions.find(s => s.id === sessionId);
+            if (!session) return;
+            
+            editSessionNameInput.value = session.name || '';
+            editSessionTopicInput.value = session.topic || '';
+            editSessionNotesInput.value = session.notes || '';
+            
+            editSessionModal.dataset.sessionId = sessionId;
+            showModal('editSessionModal');
         };
 
-        // Study Session Screen
+        const saveEditSession = async () => {
+            const sessionId = editSessionModal.dataset.sessionId;
+            const sessionRef = doc(db, 'artifacts', appId, 'users', userId, 'sessions', sessionId);
+            const updatedData = {
+                name: editSessionNameInput.value,
+                topic: editSessionTopicInput.value,
+                notes: editSessionNotesInput.value
+            };
+
+            await updateDoc(sessionRef, updatedData);
+            hideModal('editSessionModal');
+        };
+
+        const aggregateSubjectData = () => {
+            const subjectData = {};
+            sessions.forEach(session => {
+                if (session.subjectsStudied) {
+                    for (const subject in session.subjectsStudied) {
+                        subjectData[subject] = (subjectData[subject] || 0) + (session.subjectsStudied[subject] || 0);
+                    }
+                }
+            });
+            return subjectData;
+        };
+
+        const aggregateSessionData = () => {
+            // Sort sessions by timestamp to ensure chronological order
+            sessions.sort((a, b) => a.timestamp - b.timestamp);
+            return sessions.map(session => ({
+                timestamp: session.timestamp,
+                totalStudyDuration: session.totalStudyDuration || 0
+            }));
+        };
+
+        // --- Event Listeners ---
+        showTasksButton.onclick = () => showScreen('tasksScreen');
+        showGoalsButton.onclick = () => showScreen('goalsScreen');
+        showGraphsButton.onclick = () => showScreen('graphsScreen');
+        showSessionsButton.onclick = () => showScreen('sessionsScreen');
+        showMoreButton.onclick = () => showScreen('moreScreen');
+        showUpdatesButton.onclick = () => showScreen('updatesScreen');
+        showSettingsButton.onclick = () => showScreen('settingsScreen');
+        manageSubjectsButton.onclick = () => showScreen('addSubjectScreen');
+        showPrivacyButton.onclick = () => showScreen('privacyScreen');
+        showTermsButton.onclick = () => showScreen('termsScreen');
+        startNewSessionButton.onclick = () => showScreen('sessionScreen');
+        backToMenuFromTasks.onclick = () => showScreen('mainMenuScreen');
+        backToMenuFromGoals.onclick = () => showScreen('mainMenuScreen');
+        backToMenuFromSessions.onclick = () => showScreen('mainMenuScreen');
+        backToMenuFromGraphs.onclick = () => showScreen('mainMenuScreen');
+        backToMenuFromMore.onclick = () => showScreen('mainMenuScreen');
+        backToMoreFromUpdates.onclick = () => showScreen('moreScreen');
+        backToMoreFromSettings.onclick = () => showScreen('moreScreen');
+        backToMoreFromPrivacy.onclick = () => showScreen('moreScreen');
+        backToMoreFromTerms.onclick = () => showScreen('moreScreen');
+        backToSettingsFromSubjects.onclick = () => showScreen('settingsScreen');
         toggleStudyPauseButton.onclick = toggleStudyPause;
         endSessionButton.onclick = endSession;
-
-        // Session Overview Screen
-        backToMainButton.onclick = () => {
-            showScreen('mainAppScreen');
-            renderSubjects();
-            populateSubjectSelect();
+        generateTaskButton.onclick = generateTaskWithAI;
+        addGoalButton.onclick = () => addGoal(newGoalTitleInput.value);
+        addSubjectButton.onclick = addSubject;
+        saveEditSessionButton.onclick = saveEditSession;
+        cancelEditSessionButton.onclick = () => hideModal('editSessionModal');
+        
+        // Updated closeSummaryButton to navigate to main menu
+        closeSummaryButton.onclick = () => {
+            hideModal('sessionSummaryModal');
+            showScreen('mainMenuScreen');
+        };
+        
+        // --- Initialization ---
+        const initializeAppLogic = () => {
+            fetchUserData();
+            showScreen('mainMenuScreen'); // Start with the main menu screen
         };
 
-        // All Sessions Overview Screen
-        backToMainFromAllSessionsButton.onclick = () => {
-            showScreen('mainAppScreen');
+        window.onload = () => {
+            initFirebase();
         };
 
-        viewTotalOverviewButton.onclick = () => {
-            renderTotalOverview();
-            showScreen('totalOverviewScreen');
-        };
-
-        // Total Overview Screen
-        filterChartsButton.onclick = () => {
-            renderTotalOverview();
-        };
-
-        clearFilterButton.onclick = () => {
-            fromDateInput.value = '';
-            toDateInput.value = '';
-            renderTotalOverview();
-        };
-
-        backToAllSessionsButton.onclick = () => {
-            showScreen('allSessionsOverviewScreen');
-            renderAllSessionsOverview();
-        };
-
-        // Modals Event Listeners
-        // Rename Session Modal
-        cancelRenameButton.onclick = () => {
-            hideModal(renameModal);
-            sessionToRenameIndex = -1;
-        };
-        confirmRenameButton.onclick = renameSession;
-        newSessionNameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                renameSession();
-            }
-        });
-
-        // Help Icon Click Handler (no specific help for Anal ID anymore)
-        document.querySelectorAll('.help-icon').forEach(icon => {
-            icon.onclick = (event) => {
-                const helpKey = event.target.dataset.help;
-                const content = helpContent[helpKey];
-                if (content) {
-                    helpModalTitle.textContent = content.title;
-                    helpModalContent.textContent = content.content;
-                    showModal(helpModal);
-                }
-            };
-        });
-
-        closeHelpModalButton.onclick = () => {
-            hideModal(helpModal);
-        };
-
-        // Function to render the latest update notification
-        function renderUpdateNotification() {
-            const latestUpdate = patchNotesData[patchNotesData.length - 1];
-            updateTitle.textContent = `${latestUpdate.title} (v${latestUpdate.version})`;
-            updateNotes.innerHTML = '';
-            latestUpdate.notes.forEach(note => {
-                const li = document.createElement('li');
-                li.textContent = `-> ${note}`;
-                updateNotes.appendChild(li);
-            });
-        }
-
-        // Function to render all patch notes
-        function renderPatchNotes() {
-            patchNotesList.innerHTML = '';
-            // Display patch notes in reverse order (newest first)
-            for (let i = patchNotesData.length - 1; i >= 0; i--) {
-                const patch = patchNotesData[i];
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>${patch.title} (v${patch.version}):</strong>`;
-                const ul = document.createElement('ul');
-                ul.className = 'list-disc list-inside ml-4 mt-1 mb-2';
-                patch.notes.forEach(note => {
-                    const noteLi = document.createElement('li');
-                    noteLi.textContent = note;
-                    ul.appendChild(noteLi);
-                });
-                li.appendChild(ul);
-                patchNotesList.appendChild(li);
-            }
-        }
-
-        // Initialize the app on page load
-        initializeAppFlow();
     </script>
 </body>
 </html>
